@@ -1,0 +1,19 @@
+{
+  "ios": {
+    "source": "TimOliver/vips-cocoa",
+    "tag": "v8.18.0",
+    "asset": "vips-static-ios.zip",
+    "url": "https://github.com/TimOliver/vips-cocoa/releases/download/v8.18.0/vips-static-ios.zip",
+    "extractTo": "ios",
+    "marker": "ios/vips.xcframework/Info.plist"
+  },
+  "android": {
+    "source": "CaiJingLong/libvips_precompile_mobile",
+    "tag": "android-mobipkg-2025-12-12-11",
+    "asset": "libvips-android-mobipkg-android-mobipkg-2025-12-12-11.tar.xz",
+    "url": "https://github.com/CaiJingLong/libvips_precompile_mobile/releases/download/android-mobipkg-2025-12-12-11/libvips-android-mobipkg-android-mobipkg-2025-12-12-11.tar.xz",
+    "extractTo": "android",
+    "marker": "android/include/vips/vips.h"
+  },
+  "notes": "libvips is LGPL-2.1. See third_party/libvips/README.md for licensing and app-size notes."
+}

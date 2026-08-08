@@ -1,0 +1,13 @@
+example/
+third_party/libvips/downloads/
+third_party/libvips/ios/
+third_party/libvips/android/
+node_modules/
+.git/
+.github/
+*.log
+*.tgz
+src/__tests__/
+**/__tests__/
+vips-releases.json
+vips-cocoa.json

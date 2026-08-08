@@ -1,0 +1,20 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": ["sharp"],
+  "ios": {
+    "iosModuleName": "ReactNativeSharp"
+  },
+  "android": {
+    "androidNamespace": ["sharp"],
+    "androidCxxLibName": "ReactNativeSharp"
+  },
+  "autolinking": {
+    "SharpModule": {
+      "all": {
+        "language": "c++",
+        "implementationClassName": "HybridSharpModule"
+      }
+    }
+  },
+  "ignorePaths": ["**/node_modules", "**/example", "**/third_party"]
+}
