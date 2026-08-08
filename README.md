@@ -1,16 +1,19 @@
 # react-native-sharp
 
+**Sharp for React Native** — high-performance native image processing (resize, crop, rotate, compress JPEG / PNG / WebP) on iOS and Android. Same chainable API spirit as Node [`sharp`](https://sharp.pixelplumbing.com/), powered by **libvips** via [Nitro Modules](https://github.com/mrousavy/nitro) (New Architecture).
+
+> Looking for Node.js? Use [`sharp`](https://www.npmjs.com/package/sharp). This package is the **React Native** alternative that runs on device — not in Node.
+
 [![npm version](https://img.shields.io/npm/v/react-native-sharp.svg)](https://www.npmjs.com/package/react-native-sharp)
+[![npm downloads](https://img.shields.io/npm/dm/react-native-sharp.svg)](https://www.npmjs.com/package/react-native-sharp)
 [![React Native](https://img.shields.io/badge/React%20Native-%3E%3D%200.76-61dafb)](https://reactnative.dev/)
 [![New Architecture](https://img.shields.io/badge/New%20Architecture-required-orange)](https://reactnative.dev/docs/the-new-architecture/landing-page)
 [![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android-lightgrey)](https://github.com/yashp98/react-native-sharp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-High-performance image processing for React Native — same spirit as Node [`sharp`](https://sharp.pixelplumbing.com/), powered by **libvips** via [Nitro Modules](https://github.com/mrousavy/nitro).
-
-Works on **iOS** and **Android** with a chainable TypeScript API.
-
-**npm:** https://www.npmjs.com/package/react-native-sharp
+- **Package:** [`react-native-sharp`](https://www.npmjs.com/package/react-native-sharp) on npm
+- **Use cases:** thumbnails, upload compression, photo editing pipelines, client-side image resize / crop / rotate
+- **Stack:** React Native ≥ 0.76 · New Architecture · TypeScript · libvips
 
 ```ts
 import sharp from 'react-native-sharp'
@@ -189,7 +192,9 @@ Native execution order is:
 
 Write chains in that order so results match what you expect.
 
-## Features
+## Why react-native-sharp?
+
+Node [`sharp`](https://www.npmjs.com/package/sharp) does not run inside React Native apps. **react-native-sharp** brings the same idea on-device: fast libvips-backed resize, crop, rotate, blur, sharpen, and JPEG/PNG/WebP encode through a familiar chainable API.
 
 | Area | Support |
 |------|---------|

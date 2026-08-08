@@ -28,6 +28,10 @@ jest.mock('react-native-sharp', () => {
   return { __esModule: true, default: sharp, sharp }
 })
 
+jest.mock('react-native-image-picker', () => ({
+  launchImageLibrary: jest.fn(async () => ({ didCancel: true })),
+}))
+
 import React from 'react'
 import ReactTestRenderer from 'react-test-renderer'
 import App from '../App'

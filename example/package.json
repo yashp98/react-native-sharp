@@ -13,6 +13,7 @@
   "dependencies": {
     "react": "18.3.1",
     "react-native": "0.76.9",
+    "react-native-image-picker": "^8.2.1",
     "react-native-nitro-modules": "0.36.5",
     "react-native-sharp": "file:.."
   },

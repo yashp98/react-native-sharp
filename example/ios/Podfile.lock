@@ -1309,6 +1309,27 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-image-picker (8.2.1):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.10.14.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - React-nativeconfig (0.76.9)
   - React-NativeModulesApple (0.76.9):
     - glog
@@ -1581,7 +1602,7 @@ PODS:
     - React-logger
     - React-perflogger
     - React-utils (= 0.76.9)
-  - ReactNativeSharp (0.1.0):
+  - ReactNativeSharp (0.1.1):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1648,6 +1669,7 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - react-native-image-picker (from `../node_modules/react-native-image-picker`)
   - React-nativeconfig (from `../node_modules/react-native/ReactCommon`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-perflogger (from `../node_modules/react-native/ReactCommon/reactperflogger`)
@@ -1758,6 +1780,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-image-picker:
+    :path: "../node_modules/react-native-image-picker"
   React-nativeconfig:
     :path: "../node_modules/react-native/ReactCommon"
   React-NativeModulesApple:
@@ -1855,6 +1879,7 @@ SPEC CHECKSUMS:
   React-logger: dbca7bdfd4aa5ef69431362bde6b36d49403cb20
   React-Mapbuffer: 6efad4a606c1fae7e4a93385ee096681ef0300dc
   React-microtasksnativemodule: a645237a841d733861c70b69908ab4a1707b52ad
+  react-native-image-picker: 72009e8cf6410ab5fec3dd2ae37401b050d44ff4
   React-nativeconfig: 8efdb1ef1e9158c77098a93085438f7e7b463678
   React-NativeModulesApple: 958d4f6c5c2ace4c0f427cf7ef82e28ae6538a22
   React-perflogger: 9b4f13c0afe56bc7b4a0e93ec74b1150421ee22d
@@ -1882,7 +1907,7 @@ SPEC CHECKSUMS:
   React-utils: 54df9ada708578c8ad40d92895d6fed03e0e8a9e
   ReactCodegen: 21a52ccddc6479448fc91903a437dd23ddc7366c
   ReactCommon: bfd3600989d79bc3acbe7704161b171a1480b9fd
-  ReactNativeSharp: 682be8d77a5c5d3a5ceb28159bd6f40812920cd0
+  ReactNativeSharp: 120056b9d8adf53dc7f5c4f4a2617e56a87b082e
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: feb4910aba9742cfedc059e2b2902e22ffe9954a
 

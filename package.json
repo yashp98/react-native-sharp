@@ -1,7 +1,7 @@
 {
   "name": "react-native-sharp",
   "version": "0.1.1",
-  "description": "High-performance image processing for React Native — resize, crop, rotate, compress JPEG/PNG/WebP like Node sharp, powered by libvips and Nitro Modules (New Architecture)",
+  "description": "Sharp for React Native: high-performance on-device image processing — resize, crop, rotate, compress JPEG/PNG/WebP with libvips and Nitro Modules (New Architecture)",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -20,12 +20,15 @@
   "keywords": [
     "react-native",
     "react native",
+    "react-native-sharp",
     "sharp",
+    "sharp for react native",
     "libvips",
     "image",
     "image-processing",
     "image-manipulation",
     "image-resize",
+    "image-compression",
     "resize",
     "crop",
     "rotate",
@@ -39,7 +42,8 @@
     "nitro-modules",
     "new-architecture",
     "ios",
-    "android"
+    "android",
+    "typescript"
   ],
   "files": [
     "src",
