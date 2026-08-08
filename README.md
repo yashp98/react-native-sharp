@@ -1,8 +1,16 @@
 # react-native-sharp
 
+[![npm version](https://img.shields.io/npm/v/react-native-sharp.svg)](https://www.npmjs.com/package/react-native-sharp)
+[![React Native](https://img.shields.io/badge/React%20Native-%3E%3D%200.76-61dafb)](https://reactnative.dev/)
+[![New Architecture](https://img.shields.io/badge/New%20Architecture-required-orange)](https://reactnative.dev/docs/the-new-architecture/landing-page)
+[![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android-lightgrey)](https://github.com/yashp98/react-native-sharp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 High-performance image processing for React Native — same spirit as Node [`sharp`](https://sharp.pixelplumbing.com/), powered by **libvips** via [Nitro Modules](https://github.com/mrousavy/nitro).
 
 Works on **iOS** and **Android** with a chainable TypeScript API.
+
+**npm:** https://www.npmjs.com/package/react-native-sharp
 
 ```ts
 import sharp from 'react-native-sharp'
@@ -13,14 +21,55 @@ await sharp(photoUri)
   .toFile(outPath)
 ```
 
+## Compatibility
+
+| | Support |
+|--|---------|
+| **React Native** | **≥ 0.76** |
+| **React** | Matches your RN release (e.g. React 18.3 with RN 0.76) |
+| **Architecture** | **New Architecture only** |
+| **Platforms** | iOS, Android |
+| **Node** | ≥ 18 |
+
+### Tested with
+
+| Platform | React Native | React | nitro-modules | Result |
+|----------|--------------|-------|---------------|--------|
+| iOS | **0.76.9** | 18.3.1 | 0.36.5 | Validation suite 9/9 |
+| Android | **0.76.9** | 18.3.1 | 0.36.5 | Validation suite 9/9 |
+| Library build | 0.86.0 | 19.x | 0.36.x | Typecheck / bob build |
+
+### Not supported
+
+- React Native **&lt; 0.76**
+- **Old Architecture** / Paper (Bridge-only apps)
+- Expo Go (needs a **dev client** / bare workflow with native modules)
+- Web
+
 ## Requirements
 
-| Requirement | Notes |
-|-------------|--------|
-| React Native New Architecture | Required (Nitro HybridObjects) |
-| `react-native-nitro-modules` | Peer dependency |
-| iOS | `pod install` after install |
-| Android | Autolinking + CMake (no extra steps beyond Gradle sync) |
+| Requirement | Supported / notes |
+|-------------|-------------------|
+| **React Native** | **0.76+** (tested on **0.76.9**; builds with newer RN such as 0.86) |
+| **React** | Version required by your React Native release (e.g. React **18.3** with RN 0.76) |
+| **New Architecture** | **Required** (`newArchEnabled=true`) |
+| **Node.js** | **18+** |
+| **`react-native-nitro-modules`** | **≥ 0.36** (peer dependency) |
+| **iOS** | **15.1+**, Xcode with CocoaPods |
+| **Android** | **minSdk 24+**, NDK / CMake via Gradle |
+| **Platforms** | iOS and Android |
+
+Enable New Architecture if your app does not already:
+
+```properties
+# android/gradle.properties
+newArchEnabled=true
+```
+
+```ruby
+# ios — RN 0.76+ apps usually already default to New Arch;
+# confirm in Podfile / Xcode that the new architecture is on.
+```
 
 ## Install
 

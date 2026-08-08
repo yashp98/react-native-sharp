@@ -54,10 +54,15 @@
   "installConfig": {
     "hoistingLimits": "workspaces"
   },
-  "repository": "https://github.com/yashp98/react-native-sharp.git",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yashp98/react-native-sharp.git"
+  },
   "author": "yashp98",
   "license": "MIT",
-  "bugs": "https://github.com/yashp98/react-native-sharp/issues",
+  "bugs": {
+    "url": "https://github.com/yashp98/react-native-sharp/issues"
+  },
   "homepage": "https://github.com/yashp98/react-native-sharp#readme",
   "publishConfig": {
     "access": "public",
@@ -102,8 +107,11 @@
   },
   "peerDependencies": {
     "react": "*",
-    "react-native": "*",
-    "react-native-nitro-modules": "*"
+    "react-native": ">=0.76.0",
+    "react-native-nitro-modules": ">=0.36.0"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "react-native-builder-bob": {
     "source": "src",
