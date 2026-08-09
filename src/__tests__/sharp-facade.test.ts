@@ -17,14 +17,26 @@ const mockPipeline = {
   rotate: (angle: number) => {
     calls.push({ method: 'rotate', args: [angle] })
   },
+  autorotate: () => {
+    calls.push({ method: 'autorotate', args: [] })
+  },
   blur: (sigma: number) => {
     calls.push({ method: 'blur', args: [sigma] })
   },
   sharpen: (sigma: number) => {
     calls.push({ method: 'sharpen', args: [sigma] })
   },
-  jpeg: (quality: number) => {
-    calls.push({ method: 'jpeg', args: [quality] })
+  backgroundBlur: (width: number, height: number, sigma: number) => {
+    calls.push({ method: 'backgroundBlur', args: [width, height, sigma] })
+  },
+  roundCorners: (radius: number) => {
+    calls.push({ method: 'roundCorners', args: [radius] })
+  },
+  composite: (images: unknown[]) => {
+    calls.push({ method: 'composite', args: [images] })
+  },
+  jpeg: (quality: number, progressive: boolean) => {
+    calls.push({ method: 'jpeg', args: [quality, progressive] })
   },
   png: (level: number) => {
     calls.push({ method: 'png', args: [level] })
@@ -111,7 +123,7 @@ describe('sharp facade op queue', () => {
       'toFile',
     ])
     expect(calls[0]?.args).toEqual([800, 600, 'contain'])
-    expect(calls[4]?.args).toEqual([70])
+    expect(calls[4]?.args).toEqual([70, false])
     expect(calls[5]?.args).toEqual(['/tmp/out.jpg'])
   })
 
@@ -130,22 +142,65 @@ describe('sharp facade op queue', () => {
     expect(calls[0]?.args).toEqual([1, 2, 3, 4])
   })
 
-  it('applies rotate / blur / sharpen defaults', () => {
+  it('autorotates when rotate() has no angle', () => {
     sharp('/tmp/in.jpg').rotate().blur().sharpen()
-    expect(calls.map((c) => c.args)).toEqual([[90], [0.3], [1]])
+    expect(calls.map((c) => c.method)).toEqual([
+      'autorotate',
+      'blur',
+      'sharpen',
+    ])
+    expect(calls.map((c) => c.args)).toEqual([[], [0.3], [1]])
   })
 
   it('applies jpeg / png / webp option defaults', () => {
     sharp('/tmp/in.jpg').jpeg().png().webp()
-    expect(calls.map((c) => c.args)).toEqual([[80], [6], [80]])
+    expect(calls.map((c) => c.args)).toEqual([
+      [80, false],
+      [6],
+      [80],
+    ])
   })
 
-  it('forwards explicit encoder options', () => {
+  it('forwards progressive jpeg and composite overlays', () => {
     sharp('/tmp/in.jpg')
-      .jpeg({ quality: 55 })
+      .composite([
+        { input: '/tmp/mark.png', gravity: 'southeast' },
+        { input: '/tmp/badge.png', left: 10, top: 20 },
+      ])
+      .jpeg({ quality: 55, progressive: true })
       .png({ compressionLevel: 9 })
       .webp({ quality: 40 })
-    expect(calls.map((c) => c.args)).toEqual([[55], [9], [40]])
+
+    expect(calls.map((c) => c.method)).toEqual([
+      'composite',
+      'jpeg',
+      'png',
+      'webp',
+    ])
+    expect(calls[0]?.args).toEqual([
+      [
+        { input: '/tmp/mark.png', gravity: 'southeast' },
+        { input: '/tmp/badge.png', left: 10, top: 20 },
+      ],
+    ])
+    expect(calls[1]?.args).toEqual([55, true])
+    expect(calls[2]?.args).toEqual([9])
+    expect(calls[3]?.args).toEqual([40])
+  })
+
+  it('forwards backgroundBlur and roundCorners', () => {
+    sharp('/tmp/in.jpg')
+      .backgroundBlur(1080, 1920)
+      .roundCorners(48)
+      .png()
+
+    expect(calls.map((c) => c.method)).toEqual([
+      'backgroundBlur',
+      'roundCorners',
+      'png',
+    ])
+    expect(calls[0]?.args).toEqual([1080, 1920, 20])
+    expect(calls[1]?.args).toEqual([48])
   })
 
   it('returns ArrayBuffer from toBuffer()', async () => {
@@ -183,5 +238,26 @@ describe('sharp facade op queue', () => {
     expect(buf.byteLength).toBe(8)
     expect(mockNative.create).toHaveBeenCalledWith('file:///photo.jpg')
     expect(mockNative.create).toHaveBeenCalledWith('data:image/png;base64,aaa')
+  })
+})
+
+describe('sharp.processMany', () => {
+  it('runs tasks and preserves result order', async () => {
+    const results = await sharp.processMany(
+      [
+        async () => {
+          await new Promise((r) => setTimeout(r, 20))
+          return 'a'
+        },
+        async () => 'b',
+        async () => 'c',
+      ],
+      { concurrency: 2 }
+    )
+    expect(results).toEqual(['a', 'b', 'c'])
+  })
+
+  it('returns an empty array for no tasks', async () => {
+    await expect(sharp.processMany([])).resolves.toEqual([])
   })
 })

@@ -10,6 +10,9 @@ jest.mock('react-native-sharp', () => {
     rotate: chain,
     blur: chain,
     sharpen: chain,
+    backgroundBlur: chain,
+    roundCorners: chain,
+    composite: chain,
     jpeg: chain,
     png: chain,
     webp: chain,
@@ -24,7 +27,11 @@ jest.mock('react-native-sharp', () => {
       size: 68,
     }),
   }
-  const sharp = Object.assign(() => mockInstance, { vipsVersion: 'test' })
+  const sharp = Object.assign(() => mockInstance, {
+    vipsVersion: 'test',
+    processMany: async (tasks: Array<() => Promise<unknown>>) =>
+      Promise.all(tasks.map((task) => task())),
+  })
   return { __esModule: true, default: sharp, sharp }
 })
 

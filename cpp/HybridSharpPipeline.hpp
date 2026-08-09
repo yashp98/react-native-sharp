@@ -17,9 +17,13 @@ public:
   void resize(double width, double height, const std::string& fit) override;
   void crop(double left, double top, double width, double height) override;
   void rotate(double angle) override;
+  void autorotate() override;
   void blur(double sigma) override;
   void sharpen(double sigma) override;
-  void jpeg(double quality) override;
+  void backgroundBlur(double width, double height, double sigma) override;
+  void roundCorners(double radius) override;
+  void composite(const std::vector<CompositeImage>& images) override;
+  void jpeg(double quality, bool progressive) override;
   void png(double compressionLevel) override;
   void webp(double quality) override;
 

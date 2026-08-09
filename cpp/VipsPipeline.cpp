@@ -2,6 +2,7 @@
 
 #include "VipsInit.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -66,6 +67,49 @@ std::string formatNameFromLoader(VipsImage* image) {
     name.resize(name.size() - 4);
   }
   return name;
+}
+
+void gravityOffset(GravityMode gravity, int baseW, int baseH, int overlayW,
+                   int overlayH, int* left, int* top) {
+  switch (gravity) {
+    case GravityMode::North:
+      *left = (baseW - overlayW) / 2;
+      *top = 0;
+      break;
+    case GravityMode::NorthEast:
+      *left = baseW - overlayW;
+      *top = 0;
+      break;
+    case GravityMode::East:
+      *left = baseW - overlayW;
+      *top = (baseH - overlayH) / 2;
+      break;
+    case GravityMode::SouthEast:
+      *left = baseW - overlayW;
+      *top = baseH - overlayH;
+      break;
+    case GravityMode::South:
+      *left = (baseW - overlayW) / 2;
+      *top = baseH - overlayH;
+      break;
+    case GravityMode::SouthWest:
+      *left = 0;
+      *top = baseH - overlayH;
+      break;
+    case GravityMode::West:
+      *left = 0;
+      *top = (baseH - overlayH) / 2;
+      break;
+    case GravityMode::NorthWest:
+      *left = 0;
+      *top = 0;
+      break;
+    case GravityMode::Centre:
+    default:
+      *left = (baseW - overlayW) / 2;
+      *top = (baseH - overlayH) / 2;
+      break;
+  }
 }
 
 VipsImage* resizeImage(VipsImage* input, const ResizeOp& op) {
@@ -140,6 +184,254 @@ VipsImage* resizeImage(VipsImage* input, const ResizeOp& op) {
   return resized;
 }
 
+VipsImage* ensureAlpha(VipsImage* image) {
+  if (vips_image_hasalpha(image)) {
+    g_object_ref(image);
+    return image;
+  }
+  VipsImage* withAlpha = nullptr;
+  if (vips_addalpha(image, &withAlpha, nullptr)) {
+    throwVips("addalpha");
+  }
+  return withAlpha;
+}
+
+VipsImage* makeRoundedRectMask(int width, int height, int radius) {
+  VipsImage* black = nullptr;
+  if (vips_black(&black, width, height, "bands", 1, nullptr)) {
+    throwVips("roundCorners mask black");
+  }
+
+  VipsImage* mask = vips_image_copy_memory(black);
+  g_object_unref(black);
+  if (mask == nullptr) {
+    throw std::runtime_error("roundCorners: failed to copy mask to memory");
+  }
+
+  const int r = radius;
+  const int innerW = std::max(0, width - 2 * r);
+  const int innerH = std::max(0, height - 2 * r);
+
+  auto drawFail = [&](const char* where) {
+    g_object_unref(mask);
+    throwVips(where);
+  };
+
+  // Cross of filled rects + four corner circles → rounded rectangle.
+  if (innerW > 0) {
+    if (vips_draw_rect1(mask, 255, r, 0, innerW, height, "fill", TRUE,
+                        nullptr)) {
+      drawFail("roundCorners h-rect");
+    }
+  }
+  if (innerH > 0) {
+    if (vips_draw_rect1(mask, 255, 0, r, width, innerH, "fill", TRUE,
+                        nullptr)) {
+      drawFail("roundCorners v-rect");
+    }
+  }
+  if (vips_draw_circle1(mask, 255, r, r, r, "fill", TRUE, nullptr) ||
+      vips_draw_circle1(mask, 255, width - r, r, r, "fill", TRUE, nullptr) ||
+      vips_draw_circle1(mask, 255, r, height - r, r, "fill", TRUE, nullptr) ||
+      vips_draw_circle1(mask, 255, width - r, height - r, r, "fill", TRUE,
+                        nullptr)) {
+    drawFail("roundCorners corners");
+  }
+
+  return mask;
+}
+
+VipsImage* applyRoundCorners(VipsImage* input, const RoundCornersOp& op) {
+  const int width = input->Xsize;
+  const int height = input->Ysize;
+  int radius = static_cast<int>(std::lround(op.radius));
+  radius = std::max(0, std::min(radius, std::min(width, height) / 2));
+  if (radius <= 0) {
+    g_object_ref(input);
+    return input;
+  }
+
+  VipsImage* withAlpha = nullptr;
+  VipsImage* mask = nullptr;
+  VipsImage* colour = nullptr;
+  VipsImage* alpha = nullptr;
+  VipsImage* alphaF = nullptr;
+  VipsImage* maskF = nullptr;
+  VipsImage* multiplied = nullptr;
+  VipsImage* scaled = nullptr;
+  VipsImage* newAlpha = nullptr;
+  VipsImage* out = nullptr;
+
+  try {
+    withAlpha = ensureAlpha(input);
+    mask = makeRoundedRectMask(width, height, radius);
+
+    const int bands = withAlpha->Bands;
+    if (vips_extract_band(withAlpha, &colour, 0, "n", bands - 1, nullptr)) {
+      throwVips("roundCorners extract colour");
+    }
+    if (vips_extract_band(withAlpha, &alpha, bands - 1, nullptr)) {
+      throwVips("roundCorners extract alpha");
+    }
+
+    if (vips_cast(alpha, &alphaF, VIPS_FORMAT_FLOAT, nullptr) ||
+        vips_cast(mask, &maskF, VIPS_FORMAT_FLOAT, nullptr)) {
+      throwVips("roundCorners cast");
+    }
+    if (vips_multiply(alphaF, maskF, &multiplied, nullptr)) {
+      throwVips("roundCorners multiply");
+    }
+    if (vips_linear1(multiplied, &scaled, 1.0 / 255.0, 0.0, nullptr)) {
+      throwVips("roundCorners scale");
+    }
+    if (vips_cast_uchar(scaled, &newAlpha, nullptr)) {
+      throwVips("roundCorners cast alpha");
+    }
+    if (vips_bandjoin2(colour, newAlpha, &out, nullptr)) {
+      throwVips("roundCorners bandjoin");
+    }
+
+    g_object_unref(withAlpha);
+    g_object_unref(mask);
+    g_object_unref(colour);
+    g_object_unref(alpha);
+    g_object_unref(alphaF);
+    g_object_unref(maskF);
+    g_object_unref(multiplied);
+    g_object_unref(scaled);
+    g_object_unref(newAlpha);
+    return out;
+  } catch (...) {
+    if (withAlpha != nullptr)
+      g_object_unref(withAlpha);
+    if (mask != nullptr)
+      g_object_unref(mask);
+    if (colour != nullptr)
+      g_object_unref(colour);
+    if (alpha != nullptr)
+      g_object_unref(alpha);
+    if (alphaF != nullptr)
+      g_object_unref(alphaF);
+    if (maskF != nullptr)
+      g_object_unref(maskF);
+    if (multiplied != nullptr)
+      g_object_unref(multiplied);
+    if (scaled != nullptr)
+      g_object_unref(scaled);
+    if (newAlpha != nullptr)
+      g_object_unref(newAlpha);
+    if (out != nullptr)
+      g_object_unref(out);
+    throw;
+  }
+}
+
+VipsImage* applyBackgroundBlur(VipsImage* input, const BackgroundBlurOp& op) {
+  if (op.width <= 0 || op.height <= 0) {
+    throw std::runtime_error("backgroundBlur requires width and height");
+  }
+
+  const double sigma = op.sigma <= 0 ? 20.0 : op.sigma;
+  VipsImage* cover = nullptr;
+  VipsImage* blurred = nullptr;
+  VipsImage* contain = nullptr;
+  VipsImage* foreground = nullptr;
+  VipsImage* out = nullptr;
+
+  try {
+    ResizeOp coverOp;
+    coverOp.width = op.width;
+    coverOp.height = op.height;
+    coverOp.fit = FitMode::Cover;
+    cover = resizeImage(input, coverOp);
+
+    if (vips_gaussblur(cover, &blurred, sigma, nullptr)) {
+      throwVips("backgroundBlur blur");
+    }
+    g_object_unref(cover);
+    cover = nullptr;
+
+    ResizeOp containOp;
+    containOp.width = op.width;
+    containOp.height = op.height;
+    containOp.fit = FitMode::Contain;
+    contain = resizeImage(input, containOp);
+    foreground = ensureAlpha(contain);
+    g_object_unref(contain);
+    contain = nullptr;
+
+    const int left = (op.width - foreground->Xsize) / 2;
+    const int top = (op.height - foreground->Ysize) / 2;
+    if (vips_composite2(blurred, foreground, &out, VIPS_BLEND_MODE_OVER, "x",
+                        left, "y", top, nullptr)) {
+      throwVips("backgroundBlur composite");
+    }
+
+    g_object_unref(blurred);
+    g_object_unref(foreground);
+    return out;
+  } catch (...) {
+    if (cover != nullptr)
+      g_object_unref(cover);
+    if (blurred != nullptr)
+      g_object_unref(blurred);
+    if (contain != nullptr)
+      g_object_unref(contain);
+    if (foreground != nullptr)
+      g_object_unref(foreground);
+    if (out != nullptr)
+      g_object_unref(out);
+    throw;
+  }
+}
+
+VipsImage* applyComposite(VipsImage* base, const CompositeOp& op) {
+  VipsImage* overlay = loadImage(op.input);
+  VipsImage* baseAlpha = nullptr;
+  VipsImage* overlayAlpha = nullptr;
+  VipsImage* composited = nullptr;
+
+  try {
+    baseAlpha = ensureAlpha(base);
+    overlayAlpha = ensureAlpha(overlay);
+    g_object_unref(overlay);
+    overlay = nullptr;
+
+    int left = 0;
+    int top = 0;
+    if (op.left.has_value() || op.top.has_value()) {
+      left = op.left.value_or(0);
+      top = op.top.value_or(0);
+    } else {
+      gravityOffset(op.gravity, baseAlpha->Xsize, baseAlpha->Ysize,
+                    overlayAlpha->Xsize, overlayAlpha->Ysize, &left, &top);
+    }
+
+    if (vips_composite2(baseAlpha, overlayAlpha, &composited,
+                        VIPS_BLEND_MODE_OVER, "x", left, "y", top, nullptr)) {
+      throwVips("composite");
+    }
+
+    g_object_unref(baseAlpha);
+    g_object_unref(overlayAlpha);
+    return composited;
+  } catch (...) {
+    if (overlay != nullptr) {
+      g_object_unref(overlay);
+    }
+    if (baseAlpha != nullptr) {
+      g_object_unref(baseAlpha);
+    }
+    if (overlayAlpha != nullptr) {
+      g_object_unref(overlayAlpha);
+    }
+    if (composited != nullptr) {
+      g_object_unref(composited);
+    }
+    throw;
+  }
+}
+
 } // namespace
 
 FitMode parseFit(const std::string& fit) {
@@ -152,6 +444,27 @@ FitMode parseFit(const std::string& fit) {
   if (fit == "outside")
     return FitMode::Outside;
   return FitMode::Cover;
+}
+
+GravityMode parseGravity(const std::string& gravity) {
+  if (gravity == "north")
+    return GravityMode::North;
+  if (gravity == "northeast")
+    return GravityMode::NorthEast;
+  if (gravity == "east")
+    return GravityMode::East;
+  if (gravity == "southeast")
+    return GravityMode::SouthEast;
+  if (gravity == "south")
+    return GravityMode::South;
+  if (gravity == "southwest")
+    return GravityMode::SouthWest;
+  if (gravity == "west")
+    return GravityMode::West;
+  if (gravity == "northwest")
+    return GravityMode::NorthWest;
+  // centre / center / unknown → centre
+  return GravityMode::Centre;
 }
 
 std::string stripFileUri(const std::string& path) {
@@ -211,12 +524,20 @@ VipsImage* applyOps(VipsImage* input, const PipelineOps& ops) {
   };
 
   try {
-    if (ops.rotate.has_value() && std::abs(ops.rotate->angle) > 0.0001) {
-      VipsImage* rotated = nullptr;
-      if (vips_rotate(current, &rotated, ops.rotate->angle, nullptr)) {
-        throwVips("rotate");
+    if (ops.rotate.has_value()) {
+      if (ops.rotate->autorotate) {
+        VipsImage* rotated = nullptr;
+        if (vips_autorot(current, &rotated, nullptr)) {
+          throwVips("autorotate");
+        }
+        replace(rotated);
+      } else if (std::abs(ops.rotate->angle) > 0.0001) {
+        VipsImage* rotated = nullptr;
+        if (vips_rotate(current, &rotated, ops.rotate->angle, nullptr)) {
+          throwVips("rotate");
+        }
+        replace(rotated);
       }
-      replace(rotated);
     }
 
     if (ops.resize.has_value()) {
@@ -250,6 +571,18 @@ VipsImage* applyOps(VipsImage* input, const PipelineOps& ops) {
       }
       replace(sharpened);
     }
+
+    if (ops.backgroundBlur.has_value()) {
+      replace(applyBackgroundBlur(current, *ops.backgroundBlur));
+    }
+
+    if (ops.roundCorners.has_value() && ops.roundCorners->radius > 0.01) {
+      replace(applyRoundCorners(current, *ops.roundCorners));
+    }
+
+    for (const auto& composite : ops.composites) {
+      replace(applyComposite(current, composite));
+    }
   } catch (...) {
     g_object_unref(current);
     throw;
@@ -278,7 +611,9 @@ void writeImage(VipsImage* image, const std::string& outputPath,
     case EncodeFormat::Jpeg:
     case EncodeFormat::Inherit:
     default:
-      status = vips_jpegsave(image, path.c_str(), "Q", encode.quality, nullptr);
+      status = vips_jpegsave(image, path.c_str(), "Q", encode.quality,
+                            "interlace", encode.progressive ? TRUE : FALSE,
+                            nullptr);
       break;
   }
 
@@ -311,7 +646,8 @@ std::vector<uint8_t> writeImageToBuffer(VipsImage* image,
     case EncodeFormat::Inherit:
     default:
       status = vips_jpegsave_buffer(image, &buffer, &length, "Q", encode.quality,
-                                    nullptr);
+                                    "interlace",
+                                    encode.progressive ? TRUE : FALSE, nullptr);
       break;
   }
 

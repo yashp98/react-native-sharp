@@ -112,6 +112,24 @@ export async function validateSharp(): Promise<CaseResult[]> {
       return `FF D8… ${buf.byteLength}B`
     }),
 
+    await runCase('progressive jpeg SOF2', async () => {
+      const buf = await sharp(SAMPLE_PNG)
+        .resize(48, 48, { fit: 'fill' })
+        .jpeg({ quality: 80, progressive: true })
+        .toBuffer()
+      assert(startsWith(buf, [0xff, 0xd8]), `no SOI: ${hexPrefix(buf, 2)}`)
+      const view = bytes(buf)
+      let hasSof2 = false
+      for (let i = 0; i + 1 < view.length; i++) {
+        if (view[i] === 0xff && view[i + 1] === 0xc2) {
+          hasSof2 = true
+          break
+        }
+      }
+      assert(hasSof2, `missing SOF2 (progressive): ${hexPrefix(buf, 16)}`)
+      return `progressive ${buf.byteLength}B`
+    }),
+
     await runCase('webp RIFF/WEBP magic', async () => {
       const buf = await sharp(SAMPLE_PNG).webp({ quality: 70 }).toBuffer()
       assert(startsWith(buf, [0x52, 0x49, 0x46, 0x46]), `no RIFF: ${hexPrefix(buf, 4)}`)
@@ -160,6 +178,53 @@ export async function validateSharp(): Promise<CaseResult[]> {
         .toBuffer()
       assert(startsWith(buf, [0xff, 0xd8]), `no SOI: ${hexPrefix(buf, 2)}`)
       return `${buf.byteLength}B jpeg`
+    }),
+
+    await runCase('composite overlay gravity', async () => {
+      const base = await sharp(SAMPLE_PNG)
+        .resize(64, 64, { fit: 'fill' })
+        .png()
+        .toBuffer()
+      const mark = await sharp(SAMPLE_PNG)
+        .resize(16, 16, { fit: 'fill' })
+        .png()
+        .toBuffer()
+      const buf = await sharp(bufferToDataUri(base, 'image/png'))
+        .composite([
+          {
+            input: bufferToDataUri(mark, 'image/png'),
+            gravity: 'southeast',
+          },
+        ])
+        .png()
+        .toBuffer()
+      const meta = await sharp(bufferToDataUri(buf, 'image/png')).metadata()
+      assert(meta.width === 64 && meta.height === 64, `${meta.width}x${meta.height}`)
+      assert(meta.hasAlpha, 'expected alpha after composite')
+      return `${meta.width}x${meta.height} alpha`
+    }),
+
+    await runCase('roundCorners alpha mask', async () => {
+      const buf = await sharp(SAMPLE_PNG)
+        .resize(64, 64, { fit: 'cover' })
+        .roundCorners(16)
+        .png()
+        .toBuffer()
+      const meta = await sharp(bufferToDataUri(buf, 'image/png')).metadata()
+      assert(meta.width === 64 && meta.height === 64, `${meta.width}x${meta.height}`)
+      assert(meta.hasAlpha, 'expected alpha after roundCorners')
+      return `${meta.width}x${meta.height} r=16`
+    }),
+
+    await runCase('backgroundBlur canvas', async () => {
+      const buf = await sharp(SAMPLE_PNG)
+        .backgroundBlur(80, 120, 8)
+        .jpeg({ quality: 80 })
+        .toBuffer()
+      assert(startsWith(buf, [0xff, 0xd8]), `no SOI: ${hexPrefix(buf, 2)}`)
+      const meta = await sharp(bufferToDataUri(buf, 'image/jpeg')).metadata()
+      assert(meta.width === 80 && meta.height === 120, `${meta.width}x${meta.height}`)
+      return `${meta.width}x${meta.height}`
     }),
 
     await runCase('toFile round-trip', async () => {

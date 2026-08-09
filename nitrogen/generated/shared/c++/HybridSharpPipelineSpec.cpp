@@ -17,8 +17,12 @@ namespace margelo::nitro::sharp {
       prototype.registerHybridMethod("resize", &HybridSharpPipelineSpec::resize);
       prototype.registerHybridMethod("crop", &HybridSharpPipelineSpec::crop);
       prototype.registerHybridMethod("rotate", &HybridSharpPipelineSpec::rotate);
+      prototype.registerHybridMethod("autorotate", &HybridSharpPipelineSpec::autorotate);
       prototype.registerHybridMethod("blur", &HybridSharpPipelineSpec::blur);
       prototype.registerHybridMethod("sharpen", &HybridSharpPipelineSpec::sharpen);
+      prototype.registerHybridMethod("backgroundBlur", &HybridSharpPipelineSpec::backgroundBlur);
+      prototype.registerHybridMethod("roundCorners", &HybridSharpPipelineSpec::roundCorners);
+      prototype.registerHybridMethod("composite", &HybridSharpPipelineSpec::composite);
       prototype.registerHybridMethod("jpeg", &HybridSharpPipelineSpec::jpeg);
       prototype.registerHybridMethod("png", &HybridSharpPipelineSpec::png);
       prototype.registerHybridMethod("webp", &HybridSharpPipelineSpec::webp);

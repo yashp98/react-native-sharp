@@ -1,8 +1,10 @@
 import { NitroModules } from 'react-native-nitro-modules'
 import type { SharpModule, SharpPipeline } from './specs/Sharp.nitro'
 import type {
+  CompositeOptions,
   JpegOptions,
   PngOptions,
+  ProcessManyOptions,
   ResizeOptions,
   SharpInstance,
   SharpStatic,
@@ -10,6 +12,36 @@ import type {
 } from './types'
 
 const native = NitroModules.createHybridObject<SharpModule>('SharpModule')
+
+async function processMany<T>(
+  tasks: Array<() => Promise<T>>,
+  options?: ProcessManyOptions
+): Promise<T[]> {
+  const concurrency = Math.max(1, Math.floor(options?.concurrency ?? 4))
+  const results = new Array<T>(tasks.length)
+  let nextIndex = 0
+
+  async function worker() {
+    while (true) {
+      const index = nextIndex++
+      if (index >= tasks.length) {
+        return
+      }
+      const task = tasks[index]
+      if (task == null) {
+        continue
+      }
+      results[index] = await task()
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, Math.max(tasks.length, 1)) },
+    () => worker()
+  )
+  await Promise.all(workers)
+  return results
+}
 
 class SharpFacade implements SharpInstance {
   private readonly pipeline: SharpPipeline
@@ -37,8 +69,12 @@ class SharpFacade implements SharpInstance {
     return this
   }
 
-  rotate(angle: number = 90): SharpInstance {
-    this.pipeline.rotate(angle)
+  rotate(angle?: number): SharpInstance {
+    if (angle === undefined) {
+      this.pipeline.autorotate()
+    } else {
+      this.pipeline.rotate(angle)
+    }
     return this
   }
 
@@ -52,8 +88,40 @@ class SharpFacade implements SharpInstance {
     return this
   }
 
+  backgroundBlur(
+    width: number,
+    height: number,
+    sigma: number = 20
+  ): SharpInstance {
+    this.pipeline.backgroundBlur(width, height, sigma)
+    return this
+  }
+
+  roundCorners(radius: number): SharpInstance {
+    this.pipeline.roundCorners(radius)
+    return this
+  }
+
+  composite(images: CompositeOptions[]): SharpInstance {
+    this.pipeline.composite(
+      images.map((image) => {
+        const item: {
+          input: string
+          left?: number
+          top?: number
+          gravity?: string
+        } = { input: image.input }
+        if (image.left != null) item.left = image.left
+        if (image.top != null) item.top = image.top
+        if (image.gravity != null) item.gravity = image.gravity
+        return item
+      })
+    )
+    return this
+  }
+
   jpeg(options?: JpegOptions): SharpInstance {
-    this.pipeline.jpeg(options?.quality ?? 80)
+    this.pipeline.jpeg(options?.quality ?? 80, options?.progressive ?? false)
     return this
   }
 
@@ -91,13 +159,17 @@ const sharpExport = Object.assign(sharp, {
   get vipsVersion() {
     return native.vipsVersion
   },
+  processMany,
 }) as SharpStatic
 
 export type {
+  CompositeOptions,
   Fit,
+  Gravity,
   ImageMetadata,
   JpegOptions,
   PngOptions,
+  ProcessManyOptions,
   ResizeOptions,
   SharpInstance,
   SharpStatic,

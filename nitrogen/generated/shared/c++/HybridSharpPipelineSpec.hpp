@@ -13,10 +13,14 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
+// Forward declaration of `CompositeImage` to properly resolve imports.
+namespace margelo::nitro::sharp { struct CompositeImage; }
 // Forward declaration of `ImageMetadata` to properly resolve imports.
 namespace margelo::nitro::sharp { struct ImageMetadata; }
 
 #include <string>
+#include "CompositeImage.hpp"
+#include <vector>
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/ArrayBuffer.hpp>
 #include "ImageMetadata.hpp"
@@ -55,9 +59,13 @@ namespace margelo::nitro::sharp {
       virtual void resize(double width, double height, const std::string& fit) = 0;
       virtual void crop(double left, double top, double width, double height) = 0;
       virtual void rotate(double angle) = 0;
+      virtual void autorotate() = 0;
       virtual void blur(double sigma) = 0;
       virtual void sharpen(double sigma) = 0;
-      virtual void jpeg(double quality) = 0;
+      virtual void backgroundBlur(double width, double height, double sigma) = 0;
+      virtual void roundCorners(double radius) = 0;
+      virtual void composite(const std::vector<CompositeImage>& images) = 0;
+      virtual void jpeg(double quality, bool progressive) = 0;
       virtual void png(double compressionLevel) = 0;
       virtual void webp(double quality) = 0;
       virtual std::shared_ptr<Promise<std::string>> toFile(const std::string& path) = 0;

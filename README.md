@@ -38,7 +38,7 @@ Most React Native image tools either wrap thin platform APIs, run slow JS decode
 
 **Why this package:**
 
-- **Same idea as Node sharp, on the phone** — `resize → crop → rotate → blur → sharpen → jpeg/png/webp → toFile/toBuffer`, not a one-shot helper.
+- **Same idea as Node sharp, on the phone** — `rotate/autorotate → resize → crop → blur → sharpen → backgroundBlur → roundCorners → composite → jpeg/png/webp → toFile/toBuffer`, not a one-shot helper.
 - **libvips under the hood** — the same family of engine Node sharp is known for: fast, streaming-oriented, better memory behavior than naive full-frame JS processing.
 - **Nitro Modules (New Architecture)** — JSI HybridObjects instead of the old bridge; operations queue natively and resolve on background promises.
 - **Upload-ready outputs** — write a file for local use, or `toBuffer()` for multipart uploads without a round-trip to your backend first.
@@ -67,8 +67,8 @@ Most React Native image tools either wrap thin platform APIs, run slow JS decode
 
 | Platform | React Native | React | nitro-modules | Result |
 |----------|--------------|-------|---------------|--------|
-| iOS | **0.76.9** | 18.3.1 | 0.36.5 | Validation suite 9/9 |
-| Android | **0.76.9** | 18.3.1 | 0.36.5 | Validation suite 9/9 |
+| iOS | **0.76.9** | 18.3.1 | 0.36.5 | Validation suite |
+| Android | **0.76.9** | 18.3.1 | 0.36.5 | Validation suite |
 | Library build | 0.86.0 | 19.x | 0.36.x | Typecheck / bob build |
 
 ### Not supported
@@ -187,6 +187,56 @@ await sharp(uri)
   .toFile(outPath)
 ```
 
+**EXIF orientation fix + progressive JPEG**
+
+```ts
+await sharp(cameraUri)
+  .rotate() // no angle → EXIF autorotate
+  .resize(1600)
+  .jpeg({ quality: 80, progressive: true })
+  .toFile(outPath)
+```
+
+**Watermark / overlay**
+
+```ts
+await sharp(uri)
+  .resize(1200)
+  .composite([{ input: logoUri, gravity: 'southeast' }])
+  .webp({ quality: 80 })
+  .toFile(outPath)
+```
+
+**Rounded avatar**
+
+```ts
+await sharp(uri)
+  .resize(256, 256, { fit: 'cover' })
+  .roundCorners(128) // circle
+  .png()
+  .toFile(outPath)
+```
+
+**Background blur (story / reel letterbox)**
+
+```ts
+await sharp(uri)
+  .backgroundBlur(1080, 1920, 25)
+  .jpeg({ quality: 85 })
+  .toFile(outPath)
+```
+
+**Batch processing**
+
+```ts
+await sharp.processMany(
+  uris.map((uri) => () =>
+    sharp(uri).resize(800).jpeg({ progressive: true }).toFile(outPathFor(uri))
+  ),
+  { concurrency: 4 }
+)
+```
+
 **Engine version** (sanity check after install)
 
 ```ts
@@ -201,29 +251,37 @@ console.log(sharp.vipsVersion) // e.g. "8.18.0"
 |--------|-------------|
 | `resize(width?, height?, { fit? })` | Fit: `cover` (default), `contain`, `fill`, `inside`, `outside` |
 | `crop({ left, top, width, height })` | Extract region |
-| `rotate(angle?)` | Degrees (default `90`) |
+| `rotate(angle?)` | Degrees, or no arg → EXIF autorotate |
 | `blur(sigma?)` | Gaussian blur (default `0.3`) |
 | `sharpen(sigma?)` | Sharpen (default `1`) |
-| `jpeg({ quality? })` | Encode JPEG (default quality `80`) |
+| `backgroundBlur(width, height, sigma?)` | Blurred cover canvas + sharp contain overlay (default σ `20`) |
+| `roundCorners(radius)` | Rounded-rect alpha mask (use PNG/WebP) |
+| `composite([{ input, left?, top?, gravity? }])` | Overlay watermark / stamp images |
+| `jpeg({ quality?, progressive? })` | Encode JPEG (default quality `80`) |
 | `png({ compressionLevel? })` | Encode PNG (default `6`) |
 | `webp({ quality? })` | Encode WebP (default quality `80`) |
 | `toFile(path)` | Write file → `Promise<string>` |
 | `toBuffer()` | Encode to memory → `Promise<ArrayBuffer>` |
 | `metadata()` | Read input metadata → `Promise<ImageMetadata>` |
 
-Static: `sharp.vipsVersion: string`
+Static:
+
+| Member | Description |
+|--------|-------------|
+| `sharp.vipsVersion` | libvips version string |
+| `sharp.processMany(tasks, { concurrency? })` | Run pipeline tasks with limited concurrency (default `4`) |
 
 ### Pipeline order
 
 Native execution order is:
 
-`rotate → resize → crop → blur → sharpen → encode`
+`rotate/autorotate → resize → crop → blur → sharpen → backgroundBlur → roundCorners → composite → encode`
 
 Write chains in that order so results match what you expect.
 
 ## Roadmap
 
-HEIC/AVIF, watermark, composite, EXIF write, HTTP(S) inputs.
+HEIC/AVIF, text watermark, SVG→PNG, EXIF write, HTTP(S) inputs.
 
 ## Example app
 

@@ -1602,7 +1602,7 @@ PODS:
     - React-logger
     - React-perflogger
     - React-utils (= 0.76.9)
-  - ReactNativeSharp (0.1.1):
+  - ReactNativeSharp (0.1.4):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1907,10 +1907,10 @@ SPEC CHECKSUMS:
   React-utils: 54df9ada708578c8ad40d92895d6fed03e0e8a9e
   ReactCodegen: 21a52ccddc6479448fc91903a437dd23ddc7366c
   ReactCommon: bfd3600989d79bc3acbe7704161b171a1480b9fd
-  ReactNativeSharp: 120056b9d8adf53dc7f5c4f4a2617e56a87b082e
+  ReactNativeSharp: 037a5a5d209369fbd1b60fc9eaf482985860f2ae
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: feb4910aba9742cfedc059e2b2902e22ffe9954a
 
-PODFILE CHECKSUM: 81145e719f8b480d877915a1021ee576b1e2d45d
+PODFILE CHECKSUM: dfa77b0f98e5e952edaf999cf79f5dcfc52c693a
 
 COCOAPODS: 1.16.2

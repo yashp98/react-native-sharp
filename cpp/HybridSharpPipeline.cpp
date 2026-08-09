@@ -29,7 +29,18 @@ void HybridSharpPipeline::crop(double left, double top, double width,
 
 void HybridSharpPipeline::rotate(double angle) {
   std::lock_guard<std::mutex> lock(mutex_);
-  ops_.rotate = RotateOp{angle};
+  RotateOp op;
+  op.autorotate = false;
+  op.angle = angle;
+  ops_.rotate = op;
+}
+
+void HybridSharpPipeline::autorotate() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  RotateOp op;
+  op.autorotate = true;
+  op.angle = 0;
+  ops_.rotate = op;
 }
 
 void HybridSharpPipeline::blur(double sigma) {
@@ -42,10 +53,45 @@ void HybridSharpPipeline::sharpen(double sigma) {
   ops_.sharpen = SharpenOp{sigma <= 0 ? 1.0 : sigma};
 }
 
-void HybridSharpPipeline::jpeg(double quality) {
+void HybridSharpPipeline::backgroundBlur(double width, double height,
+                                         double sigma) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  BackgroundBlurOp op;
+  op.width = static_cast<int>(std::lround(width));
+  op.height = static_cast<int>(std::lround(height));
+  op.sigma = sigma <= 0 ? 20.0 : sigma;
+  ops_.backgroundBlur = op;
+}
+
+void HybridSharpPipeline::roundCorners(double radius) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  ops_.roundCorners = RoundCornersOp{radius < 0 ? 0 : radius};
+}
+
+void HybridSharpPipeline::composite(const std::vector<CompositeImage>& images) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  ops_.composites.reserve(ops_.composites.size() + images.size());
+  for (const auto& image : images) {
+    CompositeOp op;
+    op.input = image.input;
+    if (image.left.has_value()) {
+      op.left = static_cast<int>(std::lround(*image.left));
+    }
+    if (image.top.has_value()) {
+      op.top = static_cast<int>(std::lround(*image.top));
+    }
+    if (image.gravity.has_value()) {
+      op.gravity = parseGravity(*image.gravity);
+    }
+    ops_.composites.push_back(std::move(op));
+  }
+}
+
+void HybridSharpPipeline::jpeg(double quality, bool progressive) {
   std::lock_guard<std::mutex> lock(mutex_);
   ops_.encode.format = EncodeFormat::Jpeg;
   ops_.encode.quality = static_cast<int>(std::lround(quality));
+  ops_.encode.progressive = progressive;
 }
 
 void HybridSharpPipeline::png(double compressionLevel) {

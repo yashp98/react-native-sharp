@@ -11,6 +11,18 @@ namespace margelo::nitro::sharp {
 
 enum class FitMode { Cover, Contain, Fill, Inside, Outside };
 
+enum class GravityMode {
+  Centre,
+  North,
+  NorthEast,
+  East,
+  SouthEast,
+  South,
+  SouthWest,
+  West,
+  NorthWest
+};
+
 struct ResizeOp {
   int width = 0;
   int height = 0;
@@ -25,6 +37,7 @@ struct CropOp {
 };
 
 struct RotateOp {
+  bool autorotate = false;
   double angle = 0;
 };
 
@@ -36,12 +49,30 @@ struct SharpenOp {
   double sigma = 1.0;
 };
 
+struct CompositeOp {
+  std::string input;
+  std::optional<int> left;
+  std::optional<int> top;
+  GravityMode gravity = GravityMode::Centre;
+};
+
+struct RoundCornersOp {
+  double radius = 0;
+};
+
+struct BackgroundBlurOp {
+  int width = 0;
+  int height = 0;
+  double sigma = 20;
+};
+
 enum class EncodeFormat { Inherit, Jpeg, Png, Webp };
 
 struct EncodeOptions {
   EncodeFormat format = EncodeFormat::Inherit;
   int quality = 80;
   int pngCompressionLevel = 6;
+  bool progressive = false;
 };
 
 struct PipelineOps {
@@ -50,6 +81,9 @@ struct PipelineOps {
   std::optional<RotateOp> rotate;
   std::optional<BlurOp> blur;
   std::optional<SharpenOp> sharpen;
+  std::optional<BackgroundBlurOp> backgroundBlur;
+  std::optional<RoundCornersOp> roundCorners;
+  std::vector<CompositeOp> composites;
   EncodeOptions encode;
 };
 
@@ -63,6 +97,7 @@ struct MetadataResult {
 };
 
 FitMode parseFit(const std::string& fit);
+GravityMode parseGravity(const std::string& gravity);
 std::string stripFileUri(const std::string& path);
 
 VipsImage* loadImage(const std::string& inputPath);

@@ -38,8 +38,10 @@ Tap **Run validation suite** to assert real native behaviour (PASS/FAIL):
 
 1. `vipsVersion` / PNG `metadata()`
 2. resize cover → exact 64×64 (re-read buffer)
-3. JPEG `FF D8` + WebP `RIFF…WEBP` magic bytes
+3. JPEG `FF D8` + progressive JPEG `SOF2` + WebP `RIFF…WEBP`
 4. crop, rotate axis swap, blur+sharpen pipeline
-5. `toFile` round-trip via re-`metadata()`
+5. composite overlay (gravity)
+6. roundCorners alpha mask + backgroundBlur canvas
+7. `toFile` round-trip via re-`metadata()`
 
 Logic lives in `src/validateSharp.ts` — extend that file when adding ops.

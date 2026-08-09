@@ -37,13 +37,31 @@ target 'ReactNativeSharpExample' do
       # :ccache_enabled => true
     )
 
-    # Xcode 26.4+ (Apple Clang 21) rejects fmt 11.0.2's consteval path under C++20.
-    # Compile only the fmt pod as C++17 so FMT_USE_CONSTEVAL is disabled.
-    # Remove once on RN that ships fmt >= 12.1.0 (see facebook/react-native#55601).
+    # Xcode 26.4+ (Apple Clang 21) rejects fmt 11.0.2's consteval path.
+    # RN 0.76 pins fmt 11.0.2 via Folly; fixed upstream in fmt 12.1.0
+    # (facebook/react-native#55601). Patch the header — C++17 alone is unreliable
+    # because FMT_USE_CONSTEVAL is auto-detected from __cpp_consteval, and
+    # fmt 11.0.2 overwrites any -DFMT_USE_CONSTEVAL without an #ifndef guard.
+    fmt_base = File.join(installer.sandbox.root, 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      content = File.read(fmt_base)
+      unless content.include?('Xcode 26 workaround')
+        patched = content.gsub(
+          /^(#elif defined\(__cpp_consteval\)\n#  define FMT_USE_CONSTEVAL) 1/,
+          "// Xcode 26 workaround: disable consteval (fmt 11.0.2 + Apple Clang 21)\n\\1 0"
+        )
+        if patched != content
+          File.chmod(0644, fmt_base)
+          File.write(fmt_base, patched)
+          Pod::UI.puts 'Patched fmt/base.h: FMT_USE_CONSTEVAL=0 (Xcode 26 workaround)'.yellow
+        end
+      end
+    end
+
     installer.pods_project.targets.each do |target|
       next unless target.name == 'fmt'
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+      target.build_configurations.each do |bc|
+        bc.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
       end
     end
   end
