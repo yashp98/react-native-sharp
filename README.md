@@ -24,34 +24,41 @@ await sharp(photoUri)
   .toFile(outPath)
 ```
 
-## Why use react-native-sharp?
+## Why choose react-native-sharp?
 
-Most React Native image tools either wrap thin platform APIs, run slow JS decode/encode, or push work to a server. This package is built for **on-device pipelines** that feel like Node [`sharp`](https://sharp.pixelplumbing.com/).
+Most React Native image tools are one-shot resizers, JS decode/encode, or “upload it and process on a server.” This package is the **on-device Sharp**: a real **libvips** pipeline with a chainable API, built for New Architecture apps that need throughput, offline edits, and upload-ready outputs without leaving the device.
 
-| Approach | What you usually get | Gap |
-|----------|----------------------|-----|
-| **Node `sharp`** | Best-in-class libvips API | Does **not** run inside RN / Hermes |
-| **JS-only image libs** | Easy to install | Slow, memory-heavy on large camera photos |
-| **Typical RN resizers** | One-off resize / compress helpers | Different APIs per library; limited chainable pipelines; often UIKit/Bitmap wrappers |
-| **Server-side processing** | Unlimited CPU | Upload cost, latency, offline breaks, privacy tradeoffs |
-| **react-native-sharp** | Chainable sharp-like API + **libvips** via **Nitro** | Built for New Architecture apps that need real native throughput on device |
+### Why this — not the others
 
-**Why this package:**
+| If you were going to use… | You get… | Why choose **react-native-sharp** instead |
+|---------------------------|----------|-------------------------------------------|
+| **Node [`sharp`](https://sharp.pixelplumbing.com/)** | The gold-standard libvips API | Node sharp **cannot run in RN / Hermes**. This is the mobile counterpart: same mental model, on device. |
+| **`expo-image-manipulator` / typical RN resizers** | Simple resize / compress / rotate | Fine for one call. Weak for **pipelines** (chain ops, buffers, composite, story letterbox, concurrency). Often thin UIKit/`Bitmap` wrappers — not a sharp-class engine. |
+| **JS-only image libs** | No native install | Slow and memory-heavy on multi‑MP camera photos. We run **native libvips**, not full-frame JS. |
+| **Server-side processing** | Unlimited CPU / codecs | Costs bandwidth, adds latency, breaks offline, and ships user photos off-device. Process **before upload** (or fully offline) with the same app binary. |
+| **gl-react / GPU filters** | Real-time preview effects | Great for live UI. Not a substitute for **encode → JPEG/PNG/WebP file or `ArrayBuffer`** upload pipelines. |
 
-- **Same idea as Node sharp, on the phone** — `rotate/autorotate → resize → crop → blur → sharpen → backgroundBlur → roundCorners → composite → jpeg/png/webp → toFile/toBuffer`, not a one-shot helper.
-- **libvips under the hood** — the same family of engine Node sharp is known for: fast, streaming-oriented, better memory behavior than naive full-frame JS processing.
-- **Nitro Modules (New Architecture)** — JSI HybridObjects instead of the old bridge; operations queue natively and resolve on background promises.
-- **Upload-ready outputs** — write a file for local use, or `toBuffer()` for multipart uploads without a round-trip to your backend first.
-- **Cross-platform parity** — one API for iOS and Android, with TypeScript types included.
+### What you get that others usually don’t
 
-**Use it when you need to:**
+- **Sharp-like DX on the phone** — chain `rotate` / `autorotate` → `resize` → `crop` → `blur` → `sharpen` → `backgroundBlur` → `roundCorners` → `composite` → `jpeg` / `png` / `webp` → `toFile` / `toBuffer`. Not a one-shot helper.
+- **libvips under the hood** — same engine family Node sharp is known for: fast, streaming-oriented, better memory behavior than naive decode-everything-in-JS.
+- **Nitro Modules (New Architecture)** — JSI HybridObjects instead of the old bridge; ops queue natively and resolve on background promises.
+- **Upload-ready I/O** — files for local use, `toBuffer()` for multipart uploads, `fromUrl` / `fromBuffer` without base64 round-trips.
+- **One TypeScript API for iOS + Android** — shared fit modes, encode options, metadata, and `processMany` concurrency.
 
-- Shrink camera roll / picker images before upload
-- Build client-side thumbnail / preview pipelines
-- Apply crop / rotate / light edit steps offline
-- Keep a sharp-familiar DX in a React Native codebase
+### Choose this when you need to
 
-**Prefer something else when you need:** Expo Go (no custom natives), Old Architecture, web, or formats / ops we do not ship yet (see roadmap below).
+- Shrink camera / picker images **before upload**
+- Build client-side thumbnail / preview / edit pipelines
+- Crop, rotate, compress, watermark, or story-style letterbox **offline**
+- Keep a **sharp-familiar** API in a React Native (New Arch) codebase
+
+### Choose something else when you need
+
+- **Expo Go** (no custom natives) — use a managed helper or a **dev client**
+- **Old Architecture** / web — not supported
+- **Real-time GPU filters** in the UI — use a GL/filter stack; use us for the final encode
+- Codecs / ops we don’t ship yet (text watermark, SVG→PNG, HEIC/AVIF encode — see roadmap)
 
 ## Compatibility
 
