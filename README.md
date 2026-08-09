@@ -24,6 +24,35 @@ await sharp(photoUri)
   .toFile(outPath)
 ```
 
+## Why use react-native-sharp?
+
+Most React Native image tools either wrap thin platform APIs, run slow JS decode/encode, or push work to a server. This package is built for **on-device pipelines** that feel like Node [`sharp`](https://sharp.pixelplumbing.com/).
+
+| Approach | What you usually get | Gap |
+|----------|----------------------|-----|
+| **Node `sharp`** | Best-in-class libvips API | Does **not** run inside RN / Hermes |
+| **JS-only image libs** | Easy to install | Slow, memory-heavy on large camera photos |
+| **Typical RN resizers** | One-off resize / compress helpers | Different APIs per library; limited chainable pipelines; often UIKit/Bitmap wrappers |
+| **Server-side processing** | Unlimited CPU | Upload cost, latency, offline breaks, privacy tradeoffs |
+| **react-native-sharp** | Chainable sharp-like API + **libvips** via **Nitro** | Built for New Architecture apps that need real native throughput on device |
+
+**Why this package:**
+
+- **Same idea as Node sharp, on the phone** — `resize → crop → rotate → blur → sharpen → jpeg/png/webp → toFile/toBuffer`, not a one-shot helper.
+- **libvips under the hood** — the same family of engine Node sharp is known for: fast, streaming-oriented, better memory behavior than naive full-frame JS processing.
+- **Nitro Modules (New Architecture)** — JSI HybridObjects instead of the old bridge; operations queue natively and resolve on background promises.
+- **Upload-ready outputs** — write a file for local use, or `toBuffer()` for multipart uploads without a round-trip to your backend first.
+- **Cross-platform parity** — one API for iOS and Android, with TypeScript types included.
+
+**Use it when you need to:**
+
+- Shrink camera roll / picker images before upload
+- Build client-side thumbnail / preview pipelines
+- Apply crop / rotate / light edit steps offline
+- Keep a sharp-familiar DX in a React Native codebase
+
+**Prefer something else when you need:** Expo Go (no custom natives), Old Architecture, web, or formats / ops we do not ship yet (see roadmap below).
+
 ## Compatibility
 
 | | Support |
@@ -192,19 +221,9 @@ Native execution order is:
 
 Write chains in that order so results match what you expect.
 
-## Why react-native-sharp?
+## Roadmap
 
-Node [`sharp`](https://www.npmjs.com/package/sharp) does not run inside React Native apps. **react-native-sharp** brings the same idea on-device: fast libvips-backed resize, crop, rotate, blur, sharpen, and JPEG/PNG/WebP encode through a familiar chainable API.
-
-| Area | Support |
-|------|---------|
-| Platforms | iOS, Android |
-| Formats | JPEG, PNG, WebP |
-| Ops | resize, crop, rotate, blur, sharpen |
-| Output | `toFile`, `toBuffer`, `metadata` |
-| Types | TypeScript included |
-
-Roadmap: HEIC/AVIF, watermark, composite, EXIF write, HTTP(S) inputs.
+HEIC/AVIF, watermark, composite, EXIF write, HTTP(S) inputs.
 
 ## Example app
 
