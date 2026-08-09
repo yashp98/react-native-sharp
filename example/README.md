@@ -25,7 +25,7 @@ npm run android
 
 1. **Pick photo** (gallery via `react-native-image-picker`) or **Use sample**
 2. Run ops on that source:
-   - **Rotate** / **Crop** / **Save** (rotate → crop → JPEG `toFile`)
+   - **Rotate** / **Crop** / **Save** (autorotate → ≤1200px → progressive JPEG `toFile`)
    - **Fit modes** — `cover` / `contain` / `fill` / `inside` / `outside` at 160×100
    - **Blur / sharp** — gaussian blur vs sharpen
    - **Avatar** — `resize(256, 256, { fit: 'cover' })` → JPEG

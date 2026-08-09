@@ -31,25 +31,18 @@ export type DemoGallery = {
 
 const FIT_MODES: Fit[] = ['cover', 'contain', 'fill', 'inside', 'outside']
 const TARGET = { width: 160, height: 100 }
-
-function bytes(buf: ArrayBuffer): Uint8Array {
-  return new Uint8Array(buf)
-}
-
-function bufferToDataUri(buf: ArrayBuffer, mime: string): string {
-  const view = bytes(buf)
-  let binary = ''
-  for (let i = 0; i < view.length; i++) {
-    binary += String.fromCharCode(view[i]!)
-  }
-  return `data:${mime};base64,${btoa(binary)}`
-}
+/** Cap demo working size so gallery photos stay snappy. */
+const DEMO_MAX = 720
 
 function writableOutPath(filename: string): string {
   if (Platform.OS === 'ios') {
     return `/tmp/${filename}`
   }
   return `/data/data/com.reactnativesharpexample/cache/${filename}`
+}
+
+function toFileUri(path: string): string {
+  return path.startsWith('file://') ? path : `file://${path}`
 }
 
 /** Normalize picker URIs so sharp always gets file:// or an absolute path. */
@@ -64,21 +57,37 @@ export function normalizeInputUri(uri: string): string {
   return `file://${uri}`
 }
 
-async function previewFromBuffer(
+async function previewFromPath(
   label: string,
-  buf: ArrayBuffer,
-  mime: string,
+  path: string,
   detail: string
 ): Promise<DemoPreview> {
-  const uri = bufferToDataUri(buf, mime)
-  const meta = await sharp(uri).metadata()
+  const meta = await sharp(path).metadata()
   return {
     label,
-    uri,
+    uri: toFileUri(path),
     width: meta.width,
     height: meta.height,
-    detail: `${detail} · ${buf.byteLength}B`,
+    detail: `${detail} · ${Math.round(meta.size)}B`,
   }
+}
+
+/**
+ * Write a demo result to a temp file and return a file:// preview.
+ * Avoids huge data-URI / btoa work that made rotate/crop feel slow.
+ */
+async function writeDemoPreview(
+  label: string,
+  ext: 'png' | 'jpg',
+  detail: string,
+  run: (outPath: string) => Promise<string>
+): Promise<DemoPreview> {
+  const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+  const outPath = writableOutPath(
+    `rn-sharp-demo-${label.replace(/\W+/g, '_').slice(0, 24)}-${stamp}.${ext}`
+  )
+  const written = await run(outPath)
+  return previewFromPath(label, written, detail)
 }
 
 export async function previewFromInput(
@@ -89,7 +98,7 @@ export async function previewFromInput(
   const meta = await sharp(input).metadata()
   return {
     label,
-    uri: input.startsWith('data:') ? input : input,
+    uri: input.startsWith('data:') ? input : toFileUri(input),
     width: meta.width,
     height: meta.height,
     detail: detail ?? `${meta.width}×${meta.height} ${meta.format}`,
@@ -135,12 +144,16 @@ export async function rotateDemo(
   input: string = DEMO_PNG
 ): Promise<DemoPair> {
   const before = await originalPreview(input)
-  const buf = await sharp(input).rotate(90).png().toBuffer()
-  const after = await previewFromBuffer(
+  const after = await writeDemoPreview(
     'Rotate 90°',
-    buf,
-    'image/png',
-    'axes swapped'
+    'jpg',
+    'axes swapped',
+    (out) =>
+      sharp(input)
+        .rotate(90)
+        .resize(DEMO_MAX, DEMO_MAX, { fit: 'inside' })
+        .jpeg({ quality: 85 })
+        .toFile(out)
   )
   return { before, after }
 }
@@ -152,47 +165,44 @@ export async function cropDemo(input: string = DEMO_PNG): Promise<DemoPair> {
   const top = Math.max(0, Math.floor(before.height * 0.25))
   const width = Math.max(1, Math.floor(before.width * 0.55))
   const height = Math.max(1, Math.floor(before.height * 0.45))
-  const buf = await sharp(input)
+
+  // Native order is resize→crop, so crop first to a temp file, then downscale.
+  const croppedPath = writableOutPath(`rn-sharp-crop-${Date.now()}.jpg`)
+  await sharp(input)
     .crop({ left, top, width, height })
-    .png()
-    .toBuffer()
-  const after = await previewFromBuffer(
+    .jpeg({ quality: 85 })
+    .toFile(croppedPath)
+
+  const after = await writeDemoPreview(
     `Crop ${width}×${height}`,
-    buf,
-    'image/png',
-    `left:${left} top:${top}`
+    'jpg',
+    `left:${left} top:${top}`,
+    (out) =>
+      sharp(croppedPath)
+        .resize(DEMO_MAX, DEMO_MAX, { fit: 'inside' })
+        .jpeg({ quality: 85 })
+        .toFile(out)
   )
   return { before, after }
 }
 
 /**
- * Rotate → crop → JPEG toFile — the “prepare for upload” path.
- * (Library has no HTTP upload; toBuffer/toFile is the hand-off.)
+ * Prepare-for-upload path: EXIF autorotate → max edge 1200 → progressive JPEG toFile.
  */
 export async function saveDemo(input: string = DEMO_PNG): Promise<DemoPair> {
   const before = await originalPreview(input)
   const path = writableOutPath(`rn-sharp-demo-${Date.now()}.jpg`)
-  // Pipeline applies rotate before crop — size after 90° is swapped.
-  const afterW = before.height
-  const afterH = before.width
-  const cropW = Math.min(100, afterW)
-  const cropH = Math.min(100, afterH)
-  const left = Math.max(0, Math.floor((afterW - cropW) / 2))
-  const top = Math.max(0, Math.floor((afterH - cropH) / 2))
 
   const written = await sharp(input)
-    .rotate(90)
-    .crop({ left, top, width: cropW, height: cropH })
-    .jpeg({ quality: 85 })
+    .rotate() // EXIF autorotate when present
+    .resize(1200, 1200, { fit: 'inside' })
+    .jpeg({ quality: 85, progressive: true })
     .toFile(path)
 
-  const meta = await sharp(written).metadata()
-  const previewBuf = await sharp(written).jpeg({ quality: 85 }).toBuffer()
-  const after = await previewFromBuffer(
+  const after = await previewFromPath(
     'Saved JPEG',
-    previewBuf,
-    'image/jpeg',
-    `${meta.width}×${meta.height}`
+    written,
+    'autorotate · ≤1200 · progressive'
   )
   return { before, after, note: written }
 }
@@ -205,16 +215,16 @@ export async function fitModesDemo(
   const previews: DemoPreview[] = []
 
   for (const fit of FIT_MODES) {
-    const buf = await sharp(input)
-      .resize(TARGET.width, TARGET.height, { fit })
-      .png()
-      .toBuffer()
     previews.push(
-      await previewFromBuffer(
+      await writeDemoPreview(
         fit,
-        buf,
-        'image/png',
-        `${TARGET.width}×${TARGET.height}`
+        'jpg',
+        `${TARGET.width}×${TARGET.height}`,
+        (out) =>
+          sharp(input)
+            .resize(TARGET.width, TARGET.height, { fit })
+            .jpeg({ quality: 85 })
+            .toFile(out)
       )
     )
   }
@@ -232,14 +242,23 @@ export async function blurSharpenDemo(
 ): Promise<DemoGallery> {
   const source = await originalPreview(input)
 
-  const blurred = await sharp(input).blur(2.5).png().toBuffer()
-  const sharpened = await sharp(input).sharpen(2).png().toBuffer()
-
   return {
     source,
     previews: [
-      await previewFromBuffer('Blur σ=2.5', blurred, 'image/png', 'gaussian'),
-      await previewFromBuffer('Sharpen σ=2', sharpened, 'image/png', 'unsharp'),
+      await writeDemoPreview('Blur σ=2.5', 'jpg', 'gaussian', (out) =>
+        sharp(input)
+          .resize(DEMO_MAX, DEMO_MAX, { fit: 'inside' })
+          .blur(2.5)
+          .jpeg({ quality: 85 })
+          .toFile(out)
+      ),
+      await writeDemoPreview('Sharpen σ=2', 'jpg', 'unsharp', (out) =>
+        sharp(input)
+          .resize(DEMO_MAX, DEMO_MAX, { fit: 'inside' })
+          .sharpen(2)
+          .jpeg({ quality: 85 })
+          .toFile(out)
+      ),
     ],
   }
 }
@@ -247,15 +266,15 @@ export async function blurSharpenDemo(
 /** Avatar-style cover crop to a square JPEG (common upload recipe). */
 export async function avatarDemo(input: string = DEMO_PNG): Promise<DemoPair> {
   const before = await originalPreview(input)
-  const buf = await sharp(input)
-    .resize(256, 256, { fit: 'cover' })
-    .jpeg({ quality: 80 })
-    .toBuffer()
-  const after = await previewFromBuffer(
+  const after = await writeDemoPreview(
     'Avatar 256²',
-    buf,
-    'image/jpeg',
-    'cover + jpeg q80'
+    'jpg',
+    'cover + jpeg q80',
+    (out) =>
+      sharp(input)
+        .resize(256, 256, { fit: 'cover' })
+        .jpeg({ quality: 80 })
+        .toFile(out)
   )
   return { before, after }
 }
@@ -265,16 +284,16 @@ export async function roundCornersDemo(
   input: string = DEMO_PNG
 ): Promise<DemoPair> {
   const before = await originalPreview(input)
-  const buf = await sharp(input)
-    .resize(200, 200, { fit: 'cover' })
-    .roundCorners(100)
-    .png()
-    .toBuffer()
-  const after = await previewFromBuffer(
+  const after = await writeDemoPreview(
     'Circle 200²',
-    buf,
-    'image/png',
-    'roundCorners(100)'
+    'png',
+    'roundCorners(100)',
+    (out) =>
+      sharp(input)
+        .resize(200, 200, { fit: 'cover' })
+        .roundCorners(100)
+        .png()
+        .toFile(out)
   )
   return { before, after, note: 'PNG alpha mask — dark UI shows the circle' }
 }
@@ -284,15 +303,12 @@ export async function backgroundBlurDemo(
   input: string = DEMO_PNG
 ): Promise<DemoPair> {
   const before = await originalPreview(input)
-  const buf = await sharp(input)
-    .backgroundBlur(180, 320, 12)
-    .jpeg({ quality: 85 })
-    .toBuffer()
-  const after = await previewFromBuffer(
+  const after = await writeDemoPreview(
     'Bg blur 180×320',
-    buf,
-    'image/jpeg',
-    'σ=12 cover+contain'
+    'jpg',
+    'σ=12 cover+contain',
+    (out) =>
+      sharp(input).backgroundBlur(180, 320, 12).jpeg({ quality: 85 }).toFile(out)
   )
   return { before, after }
 }
@@ -302,21 +318,19 @@ export async function compositeDemo(
   input: string = DEMO_PNG
 ): Promise<DemoPair> {
   const before = await originalPreview(input)
-  const markBuf = await sharp(input)
-    .resize(56, 56, { fit: 'cover' })
-    .png()
-    .toBuffer()
-  const markUri = bufferToDataUri(markBuf, 'image/png')
-  const buf = await sharp(input)
-    .resize(280, 200, { fit: 'cover' })
-    .composite([{ input: markUri, gravity: 'southeast' }])
-    .png()
-    .toBuffer()
-  const after = await previewFromBuffer(
+  const markPath = writableOutPath(`rn-sharp-mark-${Date.now()}.png`)
+  await sharp(input).resize(56, 56, { fit: 'cover' }).png().toFile(markPath)
+
+  const after = await writeDemoPreview(
     'Watermark SE',
-    buf,
-    'image/png',
-    'composite gravity'
+    'jpg',
+    'composite gravity',
+    (out) =>
+      sharp(input)
+        .resize(280, 200, { fit: 'cover' })
+        .composite([{ input: markPath, gravity: 'southeast' }])
+        .jpeg({ quality: 85 })
+        .toFile(out)
   )
   return { before, after }
 }
