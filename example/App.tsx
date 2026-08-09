@@ -18,11 +18,14 @@ import {
 import {
   DEMO_PNG,
   avatarDemo,
+  backgroundBlurDemo,
   blurSharpenDemo,
+  compositeDemo,
   cropDemo,
   fitModesDemo,
   pickImageFromLibrary,
   rotateDemo,
+  roundCornersDemo,
   saveDemo,
   type DemoGallery,
   type DemoPair,
@@ -36,6 +39,9 @@ type DemoKind =
   | 'fit'
   | 'blur'
   | 'avatar'
+  | 'round'
+  | 'bgblur'
+  | 'watermark'
 
 export default function App() {
   const [busy, setBusy] = useState(false)
@@ -131,6 +137,15 @@ export default function App() {
           case 'avatar':
             setPair(await avatarDemo(sourceUri))
             break
+          case 'round':
+            setPair(await roundCornersDemo(sourceUri))
+            break
+          case 'bgblur':
+            setPair(await backgroundBlurDemo(sourceUri))
+            break
+          case 'watermark':
+            setPair(await compositeDemo(sourceUri))
+            break
         }
       } catch (e) {
         setDemoError(e instanceof Error ? e.message : String(e))
@@ -223,6 +238,26 @@ export default function App() {
             busy={busy}
             onPress={() => runDemo('avatar')}
             testID="demo-avatar"
+          />
+        </View>
+        <View style={[styles.demoRow, styles.demoRowSpaced]}>
+          <DemoButton
+            label="Round"
+            busy={busy}
+            onPress={() => runDemo('round')}
+            testID="demo-round"
+          />
+          <DemoButton
+            label="Bg blur"
+            busy={busy}
+            onPress={() => runDemo('bgblur')}
+            testID="demo-bgblur"
+          />
+          <DemoButton
+            label="Watermark"
+            busy={busy}
+            onPress={() => runDemo('watermark')}
+            testID="demo-watermark"
           />
         </View>
 
@@ -344,11 +379,16 @@ function PreviewCard({
   preview: DemoPreview
   wide?: boolean
 }) {
+  const circular = preview.label.toLowerCase().includes('circle')
   return (
     <View style={[styles.card, wide && styles.cardWide]}>
       <Image
         source={{ uri: preview.uri }}
-        style={[styles.previewImage, wide && styles.previewImageWide]}
+        style={[
+          styles.previewImage,
+          wide && styles.previewImageWide,
+          circular && styles.previewImageCircle,
+        ]}
         resizeMode="contain"
       />
       <Text style={styles.cardLabel}>{preview.label}</Text>
@@ -433,6 +473,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   previewImageWide: { height: 140 },
+  previewImageCircle: { borderRadius: 999, alignSelf: 'center', width: 120 },
   cardLabel: { color: '#f4f7fb', fontSize: 13, fontWeight: '600', marginTop: 6 },
   cardMeta: { color: '#9aa7b5', fontFamily: 'Menlo', fontSize: 11 },
   cardDetail: { color: '#6f7f90', fontFamily: 'Menlo', fontSize: 10 },

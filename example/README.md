@@ -29,6 +29,9 @@ npm run android
    - **Fit modes** — `cover` / `contain` / `fill` / `inside` / `outside` at 160×100
    - **Blur / sharp** — gaussian blur vs sharpen
    - **Avatar** — `resize(256, 256, { fit: 'cover' })` → JPEG
+   - **Round** — circular avatar via `roundCorners`
+   - **Bg blur** — story/reel letterbox via `backgroundBlur`
+   - **Watermark** — `composite` overlay with southeast gravity
 
 Logic lives in `src/visualDemo.ts`. After installing `react-native-image-picker`, run `pod install` on iOS and rebuild (native module).
 

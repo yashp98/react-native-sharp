@@ -259,3 +259,64 @@ export async function avatarDemo(input: string = DEMO_PNG): Promise<DemoPair> {
   )
   return { before, after }
 }
+
+/** Circular avatar via roundCorners (PNG keeps alpha). */
+export async function roundCornersDemo(
+  input: string = DEMO_PNG
+): Promise<DemoPair> {
+  const before = await originalPreview(input)
+  const buf = await sharp(input)
+    .resize(200, 200, { fit: 'cover' })
+    .roundCorners(100)
+    .png()
+    .toBuffer()
+  const after = await previewFromBuffer(
+    'Circle 200²',
+    buf,
+    'image/png',
+    'roundCorners(100)'
+  )
+  return { before, after, note: 'PNG alpha mask — dark UI shows the circle' }
+}
+
+/** Story / reel letterbox: blurred cover canvas + sharp contain overlay. */
+export async function backgroundBlurDemo(
+  input: string = DEMO_PNG
+): Promise<DemoPair> {
+  const before = await originalPreview(input)
+  const buf = await sharp(input)
+    .backgroundBlur(180, 320, 12)
+    .jpeg({ quality: 85 })
+    .toBuffer()
+  const after = await previewFromBuffer(
+    'Bg blur 180×320',
+    buf,
+    'image/jpeg',
+    'σ=12 cover+contain'
+  )
+  return { before, after }
+}
+
+/** Watermark: stamp a small cover crop into the southeast corner. */
+export async function compositeDemo(
+  input: string = DEMO_PNG
+): Promise<DemoPair> {
+  const before = await originalPreview(input)
+  const markBuf = await sharp(input)
+    .resize(56, 56, { fit: 'cover' })
+    .png()
+    .toBuffer()
+  const markUri = bufferToDataUri(markBuf, 'image/png')
+  const buf = await sharp(input)
+    .resize(280, 200, { fit: 'cover' })
+    .composite([{ input: markUri, gravity: 'southeast' }])
+    .png()
+    .toBuffer()
+  const after = await previewFromBuffer(
+    'Watermark SE',
+    buf,
+    'image/png',
+    'composite gravity'
+  )
+  return { before, after }
+}
