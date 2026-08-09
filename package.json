@@ -1,6 +1,6 @@
 {
   "name": "react-native-sharp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Sharp for React Native: high-performance on-device image processing — resize, crop, rotate, compress JPEG/PNG/WebP with libvips and Nitro Modules (New Architecture)",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
