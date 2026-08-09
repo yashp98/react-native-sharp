@@ -51,6 +51,11 @@ export interface ProcessManyOptions {
   concurrency?: number
 }
 
+export interface FromUrlOptions {
+  /** Optional request headers (e.g. Authorization) */
+  headers?: Record<string, string>
+}
+
 export interface SharpInstance {
   resize(
     width?: number | null,
@@ -97,6 +102,17 @@ export interface SharpInstance {
 export interface SharpStatic {
   (input: string): SharpInstance
   vipsVersion: string
+  /**
+   * Fetch an HTTP(S) image and return a pipeline (raw bytes → native buffer load).
+   * @example
+   * const img = await sharp.fromUrl('https://example.com/photo.jpg')
+   * await img.resize(800).jpeg().toFile(outPath)
+   */
+  fromUrl(url: string, options?: FromUrlOptions): Promise<SharpInstance>
+  /**
+   * Create a pipeline from raw encoded image bytes (no base64).
+   */
+  fromBuffer(buffer: ArrayBuffer): SharpInstance
   /**
    * Run many pipeline tasks with limited concurrency.
    * @example

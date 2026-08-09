@@ -5,6 +5,17 @@ import sharp from 'react-native-sharp'
 export const SAMPLE_PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8BQz0AEYBxVSF+FABJADveWkH6oAAAAAElFTkSuQmCC'
 
+/**
+ * Tiny 2×2 AVIF (aom). iOS prebuild can decode (libheif+dav1d);
+ * Android prebuild has libheif disabled — decode must fail there.
+ */
+export const SAMPLE_AVIF =
+  'data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUEAAADrbWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAAAAAAAOcGl0bQAAAAAAAQAAAB5pbG9jAAAAAEQAAAEAAQAAAAEAAAETAAAARwAAAChpaW5mAAAAAAABAAAAGmluZmUCAAAAAAEAAGF2MDFDb2xvcgAAAABqaXBycAAAAEtpcGNvAAAAFGlzcGUAAAAAAAAAAgAAAAIAAAAQcGl4aQAAAAADCAgIAAAADGF2MUOBIAAAAAAAE2NvbHJuY2x4AAEADQAGgAAAABdpcG1hAAAAAAAAAAEAAQQBAoMEAAAAT21kYXQSAAoEOAA2CTI9F8AJJJJFAJA/LzNjjALtyCuy6/d9LTXHksbwKk0AQKwrwPzQh7c9nT0OAs5TBj/cT7pkz1ejhWgdoT4EQA=='
+
+/** Tiny HEIC (x265). Neither mobile prebuild links libde265 — decode must fail. */
+export const SAMPLE_HEIC =
+  'data:image/heic;base64,AAAAHGZ0eXBoZWljAAAAAG1pZjFoZWljbWlhZgAAAXxtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAAA5waXRtAAAAAAABAAAAImlsb2MAAAAAREAAAQABAAAAAAGgAAEAAAAAAAAAQwAAACNpaW5mAAAAAAABAAAAFWluZmUCAAAAAAEAAGh2YzEAAAAA/GlwcnAAAADcaXBjbwAAAHVodmNDAQNwAAAAAAAAAAAAHvAA/P34+AAADwNgAAEAGEABDAH//wNwAAADAJAAAAMAAAMAHroCQGEAAQApQgEBA3AAAAMAkAAAAwAAAwAeoCCBBZbqrprm4CGgwIAAAAyAAAADAIRiAAEABkQBwXPBiQAAABNjb2xybmNseAABAA0ABoAAAAAUaXNwZQAAAAAAAABAAAAAQAAAAChjbGFwAAAAAgAAAAEAAAACAAAAAf///8IAAAAC////wgAAAAIAAAAQcGl4aQAAAAADCAgIAAAAGGlwbWEAAAAAAAAAAQABBYECAwWEAAAAS21kYXQAAAA/KAGvEyGhIFhYHJYoAAnp27Ooz/o9+9asj2Ky0+Pqa8dQICiY5mrNd9kQMsG/f24+iIyA6NuBJWPVtYg3VTJY'
+
 export type CaseResult = {
   name: string
   ok: boolean
@@ -238,6 +249,47 @@ export async function validateSharp(): Promise<CaseResult[]> {
       assert(meta.width === 24 && meta.height === 24, `${meta.width}x${meta.height}`)
       assert(meta.format === 'jpeg' || meta.format === 'jpg', `format=${meta.format}`)
       return `${meta.width}x${meta.height} → ${written}`
+    }),
+
+    await runCase('avif decode (prebuild-dependent)', async () => {
+      if (Platform.OS === 'ios') {
+        const meta = await sharp(SAMPLE_AVIF).metadata()
+        assert(meta.width === 2 && meta.height === 2, `${meta.width}x${meta.height}`)
+        assert(
+          meta.format === 'heif' || meta.format === 'avif',
+          `format=${meta.format}`
+        )
+        const buf = await sharp(SAMPLE_AVIF).jpeg({ quality: 80 }).toBuffer()
+        assert(startsWith(buf, [0xff, 0xd8]), `no SOI: ${hexPrefix(buf, 2)}`)
+        return `ios ${meta.width}x${meta.height} ${meta.format} → jpeg ${buf.byteLength}B`
+      }
+      // Android mobipkg: libheif disabled
+      let failed = false
+      try {
+        await sharp(SAMPLE_AVIF).metadata()
+      } catch {
+        failed = true
+      }
+      assert(failed, 'expected Android AVIF decode to fail (libheif absent)')
+      return 'android: decode unavailable (libheif:false) ✓'
+    }),
+
+    await runCase('heic rasterize unsupported (expected)', async () => {
+      // HEIF container headers can load without a HEVC codec (metadata may
+      // succeed). Force pixel decode via jpeg encode — needs libde265.
+      let failed = false
+      let detail = ''
+      try {
+        await sharp(SAMPLE_HEIC).jpeg({ quality: 80 }).toBuffer()
+      } catch (e) {
+        failed = true
+        detail = e instanceof Error ? e.message : String(e)
+      }
+      assert(
+        failed,
+        'expected HEIC rasterize to fail (no libde265 in iOS/Android prebuilds)'
+      )
+      return `${Platform.OS}: no libde265 ✓ (${detail.slice(0, 80)})`
     }),
   ]
 }

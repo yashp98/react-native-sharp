@@ -474,6 +474,28 @@ std::string stripFileUri(const std::string& path) {
   return path;
 }
 
+VipsImage* loadImageFromBuffer(const uint8_t* data, size_t length) {
+  ensureVipsInitialized();
+  if (data == nullptr || length == 0) {
+    throw std::runtime_error("Failed to load image from buffer: empty input");
+  }
+
+  guchar* copy = static_cast<guchar*>(g_malloc(length));
+  if (copy == nullptr) {
+    throw std::runtime_error("Failed to allocate buffer for image load");
+  }
+  std::memcpy(copy, data, length);
+
+  VipsImage* image = vips_image_new_from_buffer(copy, length, "", nullptr);
+  if (image == nullptr) {
+    g_free(copy);
+    throwVips("Failed to load image from buffer");
+  }
+  vips_image_set_blob(image, "vips-sharp-input-buffer", freeGBytes, copy,
+                      length);
+  return image;
+}
+
 VipsImage* loadImage(const std::string& inputPath) {
   ensureVipsInitialized();
 
@@ -661,27 +683,28 @@ std::vector<uint8_t> writeImageToBuffer(VipsImage* image,
   return bytes;
 }
 
-MetadataResult readMetadata(const std::string& inputPath) {
-  VipsImage* image = loadImage(inputPath);
+MetadataResult metadataFromImage(VipsImage* image, double fallbackSize) {
   MetadataResult meta;
   meta.width = image->Xsize;
   meta.height = image->Ysize;
   meta.channels = image->Bands;
   meta.hasAlpha = vips_image_hasalpha(image) != 0;
   meta.format = formatNameFromLoader(image);
-  meta.size = 0;
+  meta.size = fallbackSize;
 
-  // data URI / buffer inputs: length of the owned decoded blob
-  {
-    const void* data = nullptr;
-    size_t length = 0;
-    if (vips_image_get_blob(image, "vips-sharp-input-buffer", &data, &length) ==
-            0 &&
-        length > 0) {
-      meta.size = static_cast<double>(length);
-    }
+  const void* data = nullptr;
+  size_t length = 0;
+  if (vips_image_get_blob(image, "vips-sharp-input-buffer", &data, &length) ==
+          0 &&
+      length > 0) {
+    meta.size = static_cast<double>(length);
   }
+  return meta;
+}
 
+MetadataResult readMetadata(const std::string& inputPath) {
+  VipsImage* image = loadImage(inputPath);
+  MetadataResult meta = metadataFromImage(image, 0);
   g_object_unref(image);
 
   // file inputs: byte length on disk
@@ -698,6 +721,14 @@ MetadataResult readMetadata(const std::string& inputPath) {
     }
   }
 
+  return meta;
+}
+
+MetadataResult readMetadataFromBuffer(const uint8_t* data, size_t length) {
+  VipsImage* image = loadImageFromBuffer(data, length);
+  MetadataResult meta =
+      metadataFromImage(image, static_cast<double>(length));
+  g_object_unref(image);
   return meta;
 }
 

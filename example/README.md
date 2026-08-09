@@ -32,6 +32,7 @@ npm run android
    - **Round** — circular avatar via `roundCorners`
    - **Bg blur** — story/reel letterbox via `backgroundBlur`
    - **Watermark** — `composite` overlay with southeast gravity
+   - **HTTP fromUrl** — fetch remote JPEG → native `createFromBuffer` → resize
 
 Logic lives in `src/visualDemo.ts`. After installing `react-native-image-picker`, run `pod install` on iOS and rebuild (native module).
 
@@ -46,5 +47,7 @@ Tap **Run validation suite** to assert real native behaviour (PASS/FAIL):
 5. composite overlay (gravity)
 6. roundCorners alpha mask + backgroundBlur canvas
 7. `toFile` round-trip via re-`metadata()`
+8. AVIF decode (iOS success / Android expected failure — no libheif)
+9. HEIC rasterize unsupported on both (no libde265 — `metadata()` alone is not enough)
 
 Logic lives in `src/validateSharp.ts` — extend that file when adding ops.

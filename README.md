@@ -148,8 +148,22 @@ import { sharp } from 'react-native-sharp'
 | Absolute file path | `/var/.../image.jpg` |
 | `file://` URI | `file:///.../image.jpg` |
 | Base64 data URI | `data:image/png;base64,...` |
+| HTTP(S) URL | `await sharp.fromUrl('https://…/photo.jpg')` |
+| Raw bytes | `sharp.fromBuffer(arrayBuffer)` |
+
+`sharp('https://…')` throws on purpose — the sync constructor cannot fetch. Use `fromUrl` (fetch → native buffer, no base64).
 
 ### 3. Common recipes
+
+**HTTP(S) input**
+
+```ts
+const img = await sharp.fromUrl('https://example.com/photo.jpg')
+await img.resize(800).jpeg({ quality: 80 }).toFile(outPath)
+
+// or if you already have bytes:
+await sharp.fromBuffer(arrayBuffer).resize(800).webp().toBuffer()
+```
 
 **Metadata**
 
@@ -269,6 +283,8 @@ Static:
 | Member | Description |
 |--------|-------------|
 | `sharp.vipsVersion` | libvips version string |
+| `sharp.fromUrl(url, { headers? })` | Fetch HTTP(S) → native buffer load (no base64) |
+| `sharp.fromBuffer(arrayBuffer)` | Pipeline from raw encoded bytes |
 | `sharp.processMany(tasks, { concurrency? })` | Run pipeline tasks with limited concurrency (default `4`) |
 
 ### Pipeline order
@@ -279,9 +295,28 @@ Native execution order is:
 
 Write chains in that order so results match what you expect.
 
+## Limitations (current prebuilds)
+
+| Feature | Status | Why |
+|---------|--------|-----|
+| Image watermark | **Supported** | `composite([{ input, gravity? }])` with a PNG/WebP overlay |
+| **Text** watermark | **Not available** | Needs **pangocairo** — absent on iOS + Android prebuilds |
+| **SVG → PNG** | **Not available** | Needs **librsvg** — absent on both; `vips_svgload*` stubs fail at runtime |
+| AVIF decode | **iOS only** | dav1d linked in iOS xcframework; Android `libheif: false` |
+| HEIC pixel decode / AVIF·HEIC encode | **Not available** | Missing libde265 / aom / x265 |
+| EXIF write | **Not available yet** | libexif on **iOS only**; Android `libexif: false` — no cross-platform API yet |
+
+Workaround for text: render text to a transparent PNG in your app (or design tool), then `composite` it.
+
+Full codec matrix: [`third_party/libvips/README.md`](third_party/libvips/README.md).
+
 ## Roadmap
 
-HEIC/AVIF, text watermark, SVG→PNG, EXIF write, HTTP(S) inputs.
+- **HEIC/AVIF encode + Android AVIF/HEIC decode** — blocked on richer prebuilds (see codec matrix). iOS can already **decode AVIF** via normal `sharp(uri)` input.
+- **Text watermark / SVG→PNG** — blocked on pangocairo + librsvg in prebuilds.
+- EXIF write (needs libexif on Android too, or an iOS-only opt-in).
+
+HTTP(S) inputs: **done** via `sharp.fromUrl`.
 
 ## Example app
 

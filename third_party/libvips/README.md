@@ -33,6 +33,34 @@ This package’s own source is MIT; the vendored libvips binaries remain LGPL.
 
 Expect **several MB per ABI** for libvips + codecs (JPEG/PNG/WebP). Android packages ship `libvips.so` plus GLib deps under `jniLibs/`. iOS embeds `vips.xcframework`.
 
+## Codec matrix (pinned prebuilds)
+
+Probed from `VIPS_CONFIG` / linked plugins in the artifacts above (Aug 2026):
+
+| Capability | iOS (`vips-cocoa` 8.18.0) | Android (`android-mobipkg-2025-12-12-11`) |
+|------------|---------------------------|------------------------------------------|
+| JPEG / PNG / WebP load+save | yes | yes |
+| **AVIF decode** (pixels) | **yes** (libheif + **dav1d**) | **no** (`libheif: false`) |
+| AVIF encode | **no** (no aom / rav1e / SVT) | **no** |
+| HEIC open / metadata | may succeed (container) | **no** |
+| HEIC pixel decode | **no** (no **libde265**) | **no** |
+| HEIC encode | **no** (no **x265**) | **no** |
+| SVG → raster (`librsvg`) | **no** | **no** |
+| Text / pango (`pangocairo`) | **no** | **no** |
+| EXIF read (libexif) | **yes** | **no** |
+| EXIF write | not exposed in RN API yet | **no** (no libexif) |
+
+Notes:
+
+- iOS `VIPS_CONFIG` reports `HEIC/AVIF load/save with libheif: true`, but the only real codec plugin linked is **dav1d** (AVIF decode). HEIC **headers** can open for `metadata()`, but **rasterize** (e.g. `.jpeg().toBuffer()`) needs libde265. AVIF/HEIC encode need aom/x265 (or similar).
+- Android ships `vips_heif*` / `vips_svgload*` **API stubs**, but `VIPS_CONFIG` has `libheif: false` and `librsvg: false` — calls fail at runtime.
+- **`vips_text` / pangocairo** is disabled on both platforms → no native text watermark. Use `composite` with a pre-rendered PNG instead.
+- **SVG inputs** fail until librsvg is linked into the prebuilds.
+- Until prebuilds gain matching codecs on **both** platforms, this package will **not** expose `avif()` / `heif()` encode APIs. AVIF **decode on iOS** already works via the normal `sharp(input)` load path (no extra method).
+- HTTP(S) fetch is handled in JS (`sharp.fromUrl`); bytes are passed to native via `createFromBuffer` (no base64).
+
+To unlock cross-platform HEIC/AVIF encode+decode (or SVG / text / EXIF write), switch or rebuild prebuilds with libheif(+libde265/+aom/+x265), librsvg, pangocairo, and libexif.
+
 ## Smoke check
 
 After install, JS exposes the initialized engine version:

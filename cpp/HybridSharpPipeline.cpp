@@ -109,70 +109,84 @@ void HybridSharpPipeline::webp(double quality) {
 
 std::shared_ptr<Promise<std::string>>
 HybridSharpPipeline::toFile(const std::string& path) {
-  const auto input = inputPath_;
+  const auto inputPath = inputPath_;
+  const auto inputBytes = inputBytes_;
   PipelineOps opsCopy;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     opsCopy = ops_;
   }
 
-  return Promise<std::string>::async([input, path, opsCopy]() {
-    VipsImage* loaded = loadImage(input);
-    VipsImage* processed = nullptr;
-    try {
-      processed = applyOps(loaded, opsCopy);
-      g_object_unref(loaded);
-      loaded = nullptr;
-      writeImage(processed, path, opsCopy.encode);
-      g_object_unref(processed);
-      return stripFileUri(path);
-    } catch (...) {
-      if (loaded != nullptr) {
-        g_object_unref(loaded);
-      }
-      if (processed != nullptr) {
-        g_object_unref(processed);
-      }
-      throw;
-    }
-  });
+  return Promise<std::string>::async(
+      [inputPath, inputBytes, path, opsCopy]() {
+        VipsImage* loaded = inputBytes != nullptr
+                                ? loadImageFromBuffer(inputBytes->data(),
+                                                      inputBytes->size())
+                                : loadImage(inputPath);
+        VipsImage* processed = nullptr;
+        try {
+          processed = applyOps(loaded, opsCopy);
+          g_object_unref(loaded);
+          loaded = nullptr;
+          writeImage(processed, path, opsCopy.encode);
+          g_object_unref(processed);
+          return stripFileUri(path);
+        } catch (...) {
+          if (loaded != nullptr) {
+            g_object_unref(loaded);
+          }
+          if (processed != nullptr) {
+            g_object_unref(processed);
+          }
+          throw;
+        }
+      });
 }
 
 std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>
 HybridSharpPipeline::toBuffer() {
-  const auto input = inputPath_;
+  const auto inputPath = inputPath_;
+  const auto inputBytes = inputBytes_;
   PipelineOps opsCopy;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     opsCopy = ops_;
   }
 
-  return Promise<std::shared_ptr<ArrayBuffer>>::async([input, opsCopy]() {
-    VipsImage* loaded = loadImage(input);
-    VipsImage* processed = nullptr;
-    try {
-      processed = applyOps(loaded, opsCopy);
-      g_object_unref(loaded);
-      loaded = nullptr;
-      auto bytes = writeImageToBuffer(processed, opsCopy.encode);
-      g_object_unref(processed);
-      return ArrayBuffer::copy(bytes);
-    } catch (...) {
-      if (loaded != nullptr) {
-        g_object_unref(loaded);
-      }
-      if (processed != nullptr) {
-        g_object_unref(processed);
-      }
-      throw;
-    }
-  });
+  return Promise<std::shared_ptr<ArrayBuffer>>::async(
+      [inputPath, inputBytes, opsCopy]() {
+        VipsImage* loaded = inputBytes != nullptr
+                                ? loadImageFromBuffer(inputBytes->data(),
+                                                      inputBytes->size())
+                                : loadImage(inputPath);
+        VipsImage* processed = nullptr;
+        try {
+          processed = applyOps(loaded, opsCopy);
+          g_object_unref(loaded);
+          loaded = nullptr;
+          auto bytes = writeImageToBuffer(processed, opsCopy.encode);
+          g_object_unref(processed);
+          return ArrayBuffer::copy(bytes);
+        } catch (...) {
+          if (loaded != nullptr) {
+            g_object_unref(loaded);
+          }
+          if (processed != nullptr) {
+            g_object_unref(processed);
+          }
+          throw;
+        }
+      });
 }
 
 std::shared_ptr<Promise<ImageMetadata>> HybridSharpPipeline::metadata() {
-  const auto input = inputPath_;
-  return Promise<ImageMetadata>::async([input]() {
-    auto meta = readMetadata(input);
+  const auto inputPath = inputPath_;
+  const auto inputBytes = inputBytes_;
+  return Promise<ImageMetadata>::async([inputPath, inputBytes]() {
+    MetadataResult meta =
+        inputBytes != nullptr
+            ? readMetadataFromBuffer(inputBytes->data(), inputBytes->size())
+            : readMetadata(inputPath);
     return ImageMetadata(static_cast<double>(meta.width),
                          static_cast<double>(meta.height), meta.format,
                          static_cast<double>(meta.channels), meta.hasAlpha,

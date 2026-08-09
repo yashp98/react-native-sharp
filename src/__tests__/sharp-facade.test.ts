@@ -67,7 +67,8 @@ const mockPipeline = {
 
 const mockNative = {
   vipsVersion: '8.17.2',
-  create: jest.fn(() => mockPipeline),
+  create: jest.fn((_input?: string) => mockPipeline),
+  createFromBuffer: jest.fn((_buffer?: ArrayBuffer) => mockPipeline),
 }
 
 jest.mock('react-native-nitro-modules', () => ({
@@ -81,12 +82,19 @@ import sharp, { sharp as namedSharp } from '../index'
 beforeEach(() => {
   calls.length = 0
   mockNative.create.mockClear()
+  mockNative.createFromBuffer.mockClear()
   mockNative.create.mockImplementation(() => mockPipeline)
+  mockNative.createFromBuffer.mockImplementation(() => mockPipeline)
 })
 
 describe('sharp(input)', () => {
   it('rejects empty input', () => {
     expect(() => sharp('')).toThrow('sharp(input): input path/URI is required')
+  })
+
+  it('rejects bare HTTP(S) URLs with a fromUrl hint', () => {
+    expect(() => sharp('https://example.com/a.jpg')).toThrow('sharp.fromUrl')
+    expect(() => sharp('http://example.com/a.jpg')).toThrow('sharp.fromUrl')
   })
 
   it('creates a native pipeline with the given input', () => {
@@ -100,6 +108,78 @@ describe('sharp(input)', () => {
 
   it('exports the same function as default and named sharp', () => {
     expect(namedSharp).toBe(sharp)
+  })
+})
+
+describe('sharp.fromUrl', () => {
+  const originalFetch = globalThis.fetch
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('fetches bytes and creates a pipeline via createFromBuffer', async () => {
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    globalThis.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: { get: () => 'image/png' },
+      arrayBuffer: async () =>
+        png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength),
+    })) as unknown as typeof fetch
+
+    const pipeline = await sharp.fromUrl('https://cdn.example/photo.png')
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://cdn.example/photo.png', {
+      headers: undefined,
+    })
+    expect(mockNative.createFromBuffer).toHaveBeenCalled()
+    const buf = mockNative.createFromBuffer.mock.calls[0]?.[0] as unknown
+    expect(buf).toBeInstanceOf(ArrayBuffer)
+    expect((buf as ArrayBuffer).byteLength).toBe(8)
+    expect(mockNative.create).not.toHaveBeenCalled()
+    await expect(pipeline.metadata()).resolves.toMatchObject({
+      width: 10,
+      height: 20,
+    })
+  })
+
+  it('forwards headers and throws on non-OK responses', async () => {
+    globalThis.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 403,
+      statusText: 'Forbidden',
+      headers: { get: () => null },
+      arrayBuffer: async () => new ArrayBuffer(0),
+    })) as unknown as typeof fetch
+
+    await expect(
+      sharp.fromUrl('https://cdn.example/secret.jpg', {
+        headers: { Authorization: 'Bearer x' },
+      })
+    ).rejects.toThrow('HTTP 403')
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://cdn.example/secret.jpg', {
+      headers: { Authorization: 'Bearer x' },
+    })
+  })
+
+  it('rejects non-HTTP URLs', async () => {
+    await expect(sharp.fromUrl('/tmp/in.jpg')).rejects.toThrow(
+      'must start with http:// or https://'
+    )
+  })
+})
+
+describe('sharp.fromBuffer', () => {
+  it('creates a pipeline from raw bytes', () => {
+    const bytes = new Uint8Array([1, 2, 3]).buffer
+    sharp.fromBuffer(bytes)
+    expect(mockNative.createFromBuffer).toHaveBeenCalledWith(bytes)
+    expect(mockNative.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects empty buffers', () => {
+    expect(() => sharp.fromBuffer(new ArrayBuffer(0))).toThrow('buffer is empty')
   })
 })
 

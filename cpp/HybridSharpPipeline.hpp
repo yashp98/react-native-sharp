@@ -4,7 +4,9 @@
 #include "VipsPipeline.hpp"
 
 #include <cmath>
+#include <memory>
 #include <mutex>
+#include <vector>
 
 namespace margelo::nitro::sharp {
 
@@ -13,6 +15,10 @@ public:
   explicit HybridSharpPipeline(std::string inputPath)
       : HybridObject(TAG), HybridSharpPipelineSpec(),
         inputPath_(std::move(inputPath)) {}
+
+  explicit HybridSharpPipeline(std::shared_ptr<std::vector<uint8_t>> inputBytes)
+      : HybridObject(TAG), HybridSharpPipelineSpec(),
+        inputBytes_(std::move(inputBytes)) {}
 
   void resize(double width, double height, const std::string& fit) override;
   void crop(double left, double top, double width, double height) override;
@@ -33,6 +39,7 @@ public:
 
 private:
   std::string inputPath_;
+  std::shared_ptr<std::vector<uint8_t>> inputBytes_;
   PipelineOps ops_;
   std::mutex mutex_;
 };

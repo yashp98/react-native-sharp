@@ -15,5 +15,5 @@
     "extractTo": "android",
     "marker": "android/include/vips/vips.h"
   },
-  "notes": "libvips is LGPL-2.1. See third_party/libvips/README.md for licensing and app-size notes."
+  "notes": "libvips is LGPL-2.1. See third_party/libvips/README.md for licensing, app-size, and codec matrix (AVIF decode iOS-only; no HEIC encode/decode; no pango/librsvg)."
 }

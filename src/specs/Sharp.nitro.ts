@@ -57,4 +57,6 @@ export interface SharpModule
   /** libvips version string after successful vips_init */
   readonly vipsVersion: string
   create(inputPath: string): SharpPipeline
+  /** Create a pipeline from raw image bytes (no base64). Used by `fromUrl` / `fromBuffer`. */
+  createFromBuffer(buffer: ArrayBuffer): SharpPipeline
 }

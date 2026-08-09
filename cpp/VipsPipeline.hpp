@@ -101,11 +101,15 @@ GravityMode parseGravity(const std::string& gravity);
 std::string stripFileUri(const std::string& path);
 
 VipsImage* loadImage(const std::string& inputPath);
+/** Load from raw encoded bytes (JPEG/PNG/WebP/…). Caller keeps `data` alive only
+ *  until this returns — bytes are copied into image-owned memory. */
+VipsImage* loadImageFromBuffer(const uint8_t* data, size_t length);
 VipsImage* applyOps(VipsImage* input, const PipelineOps& ops);
 void writeImage(VipsImage* image, const std::string& outputPath,
                 const EncodeOptions& encode);
 std::vector<uint8_t> writeImageToBuffer(VipsImage* image,
                                         const EncodeOptions& encode);
 MetadataResult readMetadata(const std::string& inputPath);
+MetadataResult readMetadataFromBuffer(const uint8_t* data, size_t length);
 
 } // namespace margelo::nitro::sharp

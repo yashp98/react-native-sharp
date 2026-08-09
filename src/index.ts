@@ -1,7 +1,9 @@
 import { NitroModules } from 'react-native-nitro-modules'
+import { fetchImageBuffer } from './fromUrl'
 import type { SharpModule, SharpPipeline } from './specs/Sharp.nitro'
 import type {
   CompositeOptions,
+  FromUrlOptions,
   JpegOptions,
   PngOptions,
   ProcessManyOptions,
@@ -46,8 +48,13 @@ async function processMany<T>(
 class SharpFacade implements SharpInstance {
   private readonly pipeline: SharpPipeline
 
-  constructor(input: string) {
-    this.pipeline = native.create(input)
+  constructor(input: string)
+  constructor(pipeline: SharpPipeline)
+  constructor(inputOrPipeline: string | SharpPipeline) {
+    this.pipeline =
+      typeof inputOrPipeline === 'string'
+        ? native.create(inputOrPipeline)
+        : inputOrPipeline
   }
 
   resize(
@@ -152,19 +159,42 @@ function sharp(input: string): SharpInstance {
   if (!input) {
     throw new Error('sharp(input): input path/URI is required')
   }
+  if (input.startsWith('http://') || input.startsWith('https://')) {
+    throw new Error(
+      'sharp(input): HTTP(S) URLs are not loaded synchronously — use await sharp.fromUrl(url)'
+    )
+  }
   return new SharpFacade(input)
+}
+
+async function fromUrl(
+  url: string,
+  options?: FromUrlOptions
+): Promise<SharpInstance> {
+  const buffer = await fetchImageBuffer(url, options)
+  return new SharpFacade(native.createFromBuffer(buffer))
+}
+
+function fromBuffer(buffer: ArrayBuffer): SharpInstance {
+  if (buffer == null || buffer.byteLength === 0) {
+    throw new Error('sharp.fromBuffer: buffer is empty')
+  }
+  return new SharpFacade(native.createFromBuffer(buffer))
 }
 
 const sharpExport = Object.assign(sharp, {
   get vipsVersion() {
     return native.vipsVersion
   },
+  fromUrl,
+  fromBuffer,
   processMany,
 }) as SharpStatic
 
 export type {
   CompositeOptions,
   Fit,
+  FromUrlOptions,
   Gravity,
   ImageMetadata,
   JpegOptions,

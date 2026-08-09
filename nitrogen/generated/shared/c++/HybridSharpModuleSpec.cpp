@@ -16,6 +16,7 @@ namespace margelo::nitro::sharp {
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridGetter("vipsVersion", &HybridSharpModuleSpec::getVipsVersion);
       prototype.registerHybridMethod("create", &HybridSharpModuleSpec::create);
+      prototype.registerHybridMethod("createFromBuffer", &HybridSharpModuleSpec::createFromBuffer);
     });
   }
 

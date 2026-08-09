@@ -23,6 +23,7 @@ import {
   compositeDemo,
   cropDemo,
   fitModesDemo,
+  fromUrlDemo,
   pickImageFromLibrary,
   rotateDemo,
   roundCornersDemo,
@@ -42,6 +43,7 @@ type DemoKind =
   | 'round'
   | 'bgblur'
   | 'watermark'
+  | 'fromUrl'
 
 export default function App() {
   const [busy, setBusy] = useState(false)
@@ -145,6 +147,9 @@ export default function App() {
             break
           case 'watermark':
             setPair(await compositeDemo(sourceUri))
+            break
+          case 'fromUrl':
+            setPair(await fromUrlDemo())
             break
         }
       } catch (e) {
@@ -258,6 +263,14 @@ export default function App() {
             busy={busy}
             onPress={() => runDemo('watermark')}
             testID="demo-watermark"
+          />
+        </View>
+        <View style={[styles.demoRow, styles.demoRowSpaced]}>
+          <DemoButton
+            label="HTTP fromUrl"
+            busy={busy}
+            onPress={() => runDemo('fromUrl')}
+            testID="demo-fromurl"
           />
         </View>
 

@@ -334,3 +334,39 @@ export async function compositeDemo(
   )
   return { before, after }
 }
+
+/** Stable remote JPEG for `fromUrl` (fetch → native createFromBuffer). */
+export const DEMO_REMOTE_URL =
+  'https://picsum.photos/id/1015/400/300.jpg'
+
+/**
+ * HTTP(S) input: download with fetch, load via native buffer (no base64).
+ * Before preview uses the remote URL directly in Image.
+ */
+export async function fromUrlDemo(
+  url: string = DEMO_REMOTE_URL
+): Promise<DemoPair> {
+  const img = await sharp.fromUrl(url)
+  const meta = await img.metadata()
+  const before: DemoPreview = {
+    label: 'Remote HTTP',
+    uri: url,
+    width: meta.width,
+    height: meta.height,
+    detail: `fromUrl · ${meta.format} · ${Math.round(meta.size)}B`,
+  }
+
+  const after = await writeDemoPreview(
+    'fromUrl → 240w',
+    'jpg',
+    'fetch + createFromBuffer',
+    (out) =>
+      img.resize(240, 240, { fit: 'inside' }).jpeg({ quality: 80 }).toFile(out)
+  )
+
+  return {
+    before,
+    after,
+    note: 'JS fetch → ArrayBuffer → native createFromBuffer',
+  }
+}

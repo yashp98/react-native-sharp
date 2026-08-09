@@ -19,6 +19,7 @@ namespace margelo::nitro::sharp { class HybridSharpPipelineSpec; }
 #include <string>
 #include <memory>
 #include "HybridSharpPipelineSpec.hpp"
+#include <NitroModules/ArrayBuffer.hpp>
 
 namespace margelo::nitro::sharp {
 
@@ -52,6 +53,7 @@ namespace margelo::nitro::sharp {
     public:
       // Methods
       virtual std::shared_ptr<HybridSharpPipelineSpec> create(const std::string& inputPath) = 0;
+      virtual std::shared_ptr<HybridSharpPipelineSpec> createFromBuffer(const std::shared_ptr<ArrayBuffer>& buffer) = 0;
 
     protected:
       // Hybrid Setup
