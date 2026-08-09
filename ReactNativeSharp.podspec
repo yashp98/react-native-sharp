@@ -13,9 +13,12 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => min_ios_version_supported, :visionos => 1.0 }
   s.source       = { :git => "https://github.com/react-native-sharp/react-native-sharp.git", :tag => "#{s.version}" }
 
+  # Include ios headers in source_files so CocoaPods copies them into the
+  # module Headers dir. public_header_files alone still puts them in the
+  # umbrella (#import "Bridge.h") but they won't resolve at compile time —
+  # common failure with DEFINES_MODULE + static frameworks (RN 0.85+).
   s.source_files = [
-    "ios/**/*.{swift}",
-    "ios/**/*.{m,mm}",
+    "ios/**/*.{h,m,mm,swift}",
     "cpp/**/*.{hpp,cpp}",
   ]
 
